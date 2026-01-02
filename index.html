@@ -2,7 +2,6 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <!-- PWA Support: iPhone Fullscreen & Standalone Mode -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -37,23 +36,19 @@
 
         .font-mono { font-family: 'JetBrains Mono', monospace; }
 
-        /* Typography refinement */
         h1, h2, h3 { letter-spacing: -0.02em; }
         
         .no-scrollbar::-webkit-scrollbar { display: none; }
         
-        /* Premium Blur */
         .glass {
             background: rgba(10, 10, 10, 0.7);
             backdrop-filter: saturate(180%) blur(20px);
             -webkit-backdrop-filter: saturate(180%) blur(20px);
         }
 
-        /* Interactive Elements */
         .btn-active:active { transform: scale(0.95); }
         .hover-lift:hover { transform: translateY(-2px); transition: transform 0.2s ease; }
 
-        /* Custom Range Slider */
         input[type=range] {
             -webkit-appearance: none;
             background: transparent;
@@ -74,47 +69,59 @@
             box-shadow: 0 0 10px rgba(255,255,255,0.3);
         }
 
-        /* Playback States */
         .is-playing #player-art { animation: rotate 20s linear infinite; }
         @keyframes rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 
-        /* Visualizer Layers */
+        /* --- Extended CSS for Features --- */
+        
+        /* Visualizer */
         #viz-canvas {
-            filter: blur(1px);
-            mix-blend-mode: screen;
-            opacity: 0.3; /* Slightly dimmer for the ring effect */
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 5; /* Behind album art (z-10), but visible */
+            pointer-events: none;
+            opacity: 0.6;
         }
 
-        /* Tab Transitions */
-        .view-section { transition: opacity 0.3s ease, transform 0.3s ease; }
-        .view-section.hidden { opacity: 0; transform: translateY(10px); pointer-events: none; position: absolute; }
-
-        /* --- NEW FEATURES CSS BELOW --- */
-
-        /* Lyrics Container */
-        #lyrics-container {
-            mask-image: linear-gradient(to bottom, transparent, black 10%, black 90%, transparent);
-            -webkit-mask-image: linear-gradient(to bottom, transparent, black 10%, black 90%, transparent);
+        /* Lyrics */
+        #lyrics-panel {
+            mask-image: linear-gradient(to bottom, transparent 0%, black 15%, black 85%, transparent 100%);
+            -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 15%, black 85%, transparent 100%);
+            touch-action: pan-y; /* Allow vertical scrolling */
         }
         .lyric-line {
             transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
             color: #52525b;
             opacity: 0.6;
+            transform-origin: center left;
+            cursor: pointer;
         }
         .lyric-line.active {
             color: #ffffff;
-            font-size: 1.25rem;
+            font-size: 1.5rem;
+            font-weight: 700;
             opacity: 1;
-            transform: scale(1.05);
-            font-weight: 600;
-            text-shadow: 0 0 20px rgba(255,255,255,0.3);
+            transform: scale(1.05) translateX(10px);
+            text-shadow: 0 0 30px rgba(255,255,255,0.4);
+        }
+        
+        /* View Transition Fixes */
+        .view-section { transition: opacity 0.3s ease, transform 0.3s ease; }
+        .view-section.hidden { opacity: 0; transform: translateY(10px); pointer-events: none; position: absolute; }
+
+        /* Modals */
+        .modal-overlay {
+            z-index: 250; /* Higher than player (z-100) */
         }
 
-        /* Queue Swipe Actions */
+        /* Queue Item Swipe */
         .queue-item {
             position: relative;
-            transition: transform 0.2s ease;
-            touch-action: pan-y; /* Allow vertical scroll, handle horizontal manually */
+            overflow: hidden;
+            border-radius: 12px;
         }
         .swipe-bg {
             position: absolute;
@@ -125,31 +132,32 @@
             align-items: center;
             justify-content: center;
             z-index: 0;
-            border-top-right-radius: 12px;
-            border-bottom-right-radius: 12px;
         }
         .queue-content {
             position: relative;
             z-index: 10;
-            background: rgba(24, 24, 27, 0.8); /* zinc-900 with opacity */
+            background: rgba(24, 24, 27, 0.9);
+            transition: transform 0.2s ease-out;
         }
 
-        /* Wrapped / Analytics Modal */
-        #wrapped-modal {
-            background: linear-gradient(135deg, #1a1a1a 0%, #000000 100%);
-        }
-        .stat-card {
-            background: rgba(255,255,255,0.05);
+        /* Wrapped Styles */
+        .wrapped-card {
+            background: linear-gradient(145deg, #1f1f1f, #0a0a0a);
             border: 1px solid rgba(255,255,255,0.1);
-            backdrop-filter: blur(10px);
+        }
+        .stat-gradient {
+            background: linear-gradient(to right, #ef4444, #f97316);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
         }
 
-        /* Playlist Floating Action Button */
-        .fab {
-            position: absolute;
-            bottom: 20px;
-            right: 20px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        /* Toast */
+        #toast {
+            transform: translateY(100px);
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        #toast.show {
+            transform: translateY(0);
         }
     </style>
 </head>
@@ -157,8 +165,8 @@
 
     <div id="app-container" class="relative w-full h-full max-w-[440px] max-h-[950px] bg-black md:border-[8px] md:border-[#1a1a1a] md:rounded-[3rem] overflow-hidden flex flex-col shadow-[0_0_100px_rgba(0,0,0,0.8)]">
         
-        <!-- Status Bar Space (iOS Style) -->
-        <div class="h-10 w-full flex items-center justify-between px-8 text-[12px] font-semibold opacity-60 z-50">
+        <!-- Status Bar -->
+        <div class="h-10 w-full flex items-center justify-between px-8 text-[12px] font-semibold opacity-60 z-50 pointer-events-none">
             <span id="system-time">--:--</span>
             <div class="flex gap-1.5 items-center">
                 <i data-lucide="wifi" class="w-3 h-3"></i>
@@ -167,7 +175,7 @@
         </div>
 
         <!-- App Header -->
-        <header class="px-6 py-4 flex justify-between items-center z-40">
+        <header class="px-6 py-4 flex justify-between items-center z-40 relative">
             <div>
                 <h1 class="text-2xl font-bold tracking-tight">SNIPLIT</h1>
                 <p id="greeting" class="text-[11px] text-zinc-500 font-medium uppercase tracking-widest">Initializing...</p>
@@ -176,14 +184,14 @@
                 <button onclick="UI.showWrapped()" class="p-2 bg-white/5 rounded-full hover:bg-white/10 transition">
                     <i data-lucide="bar-chart-2" class="w-5 h-5"></i>
                 </button>
-                <button onclick="UI.toggleView('settings')" class="p-2 bg-white/5 rounded-full hover:bg-white/10 transition">
+                <button onclick="UI.openSettings()" class="p-2 bg-white/5 rounded-full hover:bg-white/10 transition">
                     <i data-lucide="settings-2" class="w-5 h-5"></i>
                 </button>
             </div>
         </header>
 
         <!-- Main Content -->
-        <main id="view-port" class="flex-1 overflow-y-auto no-scrollbar px-6 pb-40 relative">
+        <main id="view-port" class="flex-1 overflow-y-auto no-scrollbar px-6 pb-40 relative z-10">
             
             <!-- Home View -->
             <section id="view-home" class="view-section space-y-8 pt-4">
@@ -210,7 +218,7 @@
             <!-- Library View -->
             <section id="view-library" class="view-section hidden pt-4 space-y-6">
                 <div class="flex gap-2">
-                    <button class="bg-white text-black px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider">Playlists</button>
+                    <button class="bg-white text-black px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider">Library</button>
                     <button onclick="UI.showCreatePlaylist()" class="bg-zinc-900 text-zinc-400 px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider border border-white/5 hover:border-white/20 transition">+ New</button>
                     <button onclick="LocalFiles.trigger()" class="bg-zinc-900 text-zinc-400 px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider border border-white/5 hover:border-white/20 transition">Import</button>
                 </div>
@@ -225,6 +233,12 @@
                 <div id="artist-albums" class="grid grid-cols-2 gap-4 pb-20"></div>
             </section>
 
+            <!-- Playlist Detail View (Dynamic) -->
+            <section id="view-playlist" class="view-section hidden pt-4 space-y-6">
+                <button onclick="UI.back()" class="text-zinc-500 hover:text-white flex items-center gap-2 text-xs font-bold"><i data-lucide="arrow-left" class="w-4 h-4"></i> BACK</button>
+                <div id="playlist-hero" class="space-y-4"></div>
+                <div id="playlist-tracks" class="space-y-1 pb-20"></div>
+            </section>
         </main>
 
         <!-- Mini Player -->
@@ -241,7 +255,7 @@
         </div>
 
         <!-- Navigation Bar -->
-        <nav class="h-20 glass border-t border-white/5 flex items-center justify-around px-4 pb-4 z-40">
+        <nav class="h-20 glass border-t border-white/5 flex items-center justify-around px-4 pb-4 z-40 relative">
             <button onclick="UI.toggleView('home')" class="nav-btn active flex flex-col items-center gap-1 text-zinc-500 group" data-view="home">
                 <i data-lucide="home" class="w-5 h-5 group-[.active]:text-white"></i>
                 <span class="text-[9px] font-bold uppercase tracking-widest group-[.active]:text-white">Home</span>
@@ -269,7 +283,7 @@
 
             <div class="flex-1 flex flex-col items-center justify-center p-10 relative overflow-hidden">
                 <!-- Circular Visualizer Canvas -->
-                <canvas id="viz-canvas" class="absolute w-full h-full pointer-events-none"></canvas>
+                <canvas id="viz-canvas"></canvas>
                 
                 <div class="relative z-10 w-full max-w-[320px] aspect-square rounded-[2rem] overflow-hidden shadow-[0_40px_100px_rgba(0,0,0,0.9)] border border-white/5">
                     <img id="player-art" src="" class="w-full h-full object-cover">
@@ -282,7 +296,7 @@
                         <button onclick="UI.toggleLyrics()" class="p-2 bg-white/10 rounded-full"><i data-lucide="x" class="w-4 h-4"></i></button>
                     </div>
                     <div id="lyrics-container" class="flex-1 overflow-y-auto no-scrollbar text-center space-y-6 scroll-smooth">
-                        <p class="text-zinc-600 text-sm animate-pulse">Searching lyrics database...</p>
+                        <!-- Lyrics injected here -->
                     </div>
                 </div>
             </div>
@@ -294,11 +308,16 @@
                             <h2 id="player-title" class="text-2xl font-bold truncate">Title</h2>
                             <span id="explicit-badge" class="hidden bg-zinc-800 text-zinc-400 text-[8px] font-bold px-1 rounded">E</span>
                         </div>
-                        <p id="player-artist" class="text-zinc-500 font-semibold uppercase tracking-wider text-sm hover:text-white transition cursor-pointer">Artist</p>
+                        <p id="player-artist" class="text-zinc-500 font-semibold uppercase tracking-wider text-sm hover:text-white transition cursor-pointer" onclick="UI.openArtistProfile(State.currentTrack)">Artist</p>
                     </div>
-                    <button id="like-btn" onclick="Library.toggleLike()" class="p-3 bg-zinc-900 rounded-full transition active:scale-90">
-                        <i data-lucide="heart" class="w-6 h-6"></i>
-                    </button>
+                    <div class="flex gap-2">
+                        <button id="like-btn" onclick="Library.toggleLike()" class="p-3 bg-zinc-900 rounded-full transition active:scale-90">
+                            <i data-lucide="heart" class="w-6 h-6"></i>
+                        </button>
+                        <button onclick="UI.openAddToPlaylist()" class="p-3 bg-zinc-900 rounded-full transition active:scale-90">
+                            <i data-lucide="plus" class="w-6 h-6"></i>
+                        </button>
+                    </div>
                 </div>
 
                 <div class="space-y-2">
@@ -322,70 +341,105 @@
         </div>
 
         <!-- Settings Modal -->
-        <div id="modal-settings" class="hidden fixed inset-0 z-[150] glass p-8 pt-16 flex flex-col gap-8 animate-in fade-in duration-300">
-            <div class="flex justify-between items-center">
+        <div id="modal-settings" class="hidden fixed inset-0 z-[250] glass p-8 pt-16 flex flex-col animate-in fade-in duration-300">
+            <div class="flex justify-between items-center mb-8">
                 <h2 class="text-2xl font-bold">Settings</h2>
-                <button onclick="UI.toggleView('home')" class="p-2"><i data-lucide="x" class="w-6 h-6"></i></button>
+                <button onclick="UI.closeSettings()" class="p-2"><i data-lucide="x" class="w-6 h-6"></i></button>
             </div>
-            <div class="space-y-6 overflow-y-auto no-scrollbar">
-                <div class="space-y-2">
-                    <label class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Profile Name</label>
-                    <input type="text" id="pref-name" onchange="Database.save('user_name', this.value)" class="w-full bg-zinc-900/50 border border-zinc-800 p-4 rounded-xl focus:outline-none">
-                </div>
+            <div class="space-y-8 overflow-y-auto no-scrollbar flex-1">
+                
+                <!-- Account -->
                 <div class="space-y-4">
-                    <h3 class="text-sm font-semibold">Audio Engine</h3>
+                    <h3 class="text-sm font-bold uppercase tracking-widest text-zinc-500">Account</h3>
+                    <div class="flex items-center gap-4 bg-zinc-900/50 p-4 rounded-2xl">
+                        <div class="w-12 h-12 rounded-full bg-zinc-800 flex items-center justify-center">
+                            <i data-lucide="user" class="w-6 h-6 text-zinc-400"></i>
+                        </div>
+                        <div>
+                            <input type="text" id="pref-name" onchange="Database.save('user_name', this.value)" class="bg-transparent font-bold text-lg outline-none w-full" placeholder="Display Name">
+                            <p class="text-xs text-zinc-500">SNIPLIT Free Tier</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Audio Engine -->
+                <div class="space-y-4">
+                    <h3 class="text-sm font-bold uppercase tracking-widest text-zinc-500">Audio Engine</h3>
+                    
                     <div class="flex justify-between items-center">
                         <span class="text-sm">High Fidelity Streaming</span>
-                        <div class="w-10 h-5 bg-white rounded-full relative"><div class="absolute right-1 top-1 w-3 h-3 bg-black rounded-full"></div></div>
+                        <div class="w-10 h-5 bg-white rounded-full relative cursor-pointer" onclick="this.classList.toggle('bg-white');this.classList.toggle('bg-zinc-600'); this.children[0].classList.toggle('translate-x-5');"><div class="absolute left-1 top-1 w-3 h-3 bg-black rounded-full transition-transform duration-200"></div></div>
                     </div>
+                    
                     <div class="flex justify-between items-center">
                         <span class="text-sm">Dynamic Visualizer</span>
-                        <div class="w-10 h-5 bg-white rounded-full relative" onclick="UI.toggleViz()"><div id="viz-toggle-dot" class="absolute right-1 top-1 w-3 h-3 bg-black rounded-full transition-all"></div></div>
+                        <div class="w-10 h-5 bg-white rounded-full relative cursor-pointer" onclick="UI.toggleViz(); this.classList.toggle('bg-white');this.classList.toggle('bg-zinc-600'); this.children[0].classList.toggle('translate-x-5');"><div id="viz-toggle-dot" class="absolute left-1 top-1 w-3 h-3 bg-black rounded-full transition-transform duration-200 translate-x-5"></div></div>
                     </div>
+
                     <div class="flex justify-between items-center">
-                        <span class="text-sm">Synced Lyrics</span>
-                        <div class="w-10 h-5 bg-white rounded-full relative"><div class="absolute right-1 top-1 w-3 h-3 bg-black rounded-full"></div></div>
+                        <span class="text-sm">System Haptics</span>
+                        <div class="w-10 h-5 bg-white rounded-full relative cursor-pointer" onclick="this.classList.toggle('bg-white');this.classList.toggle('bg-zinc-600'); this.children[0].classList.toggle('translate-x-5');"><div class="absolute left-1 top-1 w-3 h-3 bg-black rounded-full transition-transform duration-200 translate-x-5"></div></div>
+                    </div>
+                    
+                    <div class="pt-2">
+                        <div class="flex justify-between text-xs mb-2 text-zinc-500">
+                            <span>Equalizer</span>
+                            <span class="uppercase font-bold">Electronic</span>
+                        </div>
+                        <div class="flex justify-between items-end h-12 px-2">
+                            <div class="w-1 bg-zinc-600 rounded-full h-[40%]"></div>
+                            <div class="w-1 bg-zinc-600 rounded-full h-[60%]"></div>
+                            <div class="w-1 bg-zinc-600 rounded-full h-[30%]"></div>
+                            <div class="w-1 bg-zinc-600 rounded-full h-[50%]"></div>
+                            <div class="w-1 bg-zinc-600 rounded-full h-[80%]"></div>
+                            <div class="w-1 bg-zinc-600 rounded-full h-[60%]"></div>
+                            <div class="w-1 bg-zinc-600 rounded-full h-[40%]"></div>
+                            <div class="w-1 bg-zinc-600 rounded-full h-[30%]"></div>
+                        </div>
                     </div>
                 </div>
+
                 <div class="pt-10 border-t border-white/5">
-                    <p class="text-zinc-600 text-[10px] font-mono uppercase">Version 5.3.0 • SNIPLIT Pro Active</p>
+                    <p class="text-zinc-600 text-[10px] font-mono uppercase">Version 5.4.0 • SNIPLIT Pro Active</p>
+                    <button onclick="localStorage.clear();location.reload()" class="text-red-500 text-xs font-bold uppercase mt-4">Reset Application Data</button>
                 </div>
             </div>
         </div>
 
         <!-- Queue View -->
-        <div id="modal-queue" class="hidden fixed inset-0 z-[160] glass p-8 pt-16 flex flex-col gap-6 animate-in slide-in-from-bottom duration-500">
+        <div id="modal-queue" class="hidden fixed inset-0 z-[150] glass p-8 pt-16 flex flex-col gap-6 animate-in slide-in-from-bottom duration-500">
             <div class="flex justify-between items-center">
-                <h2 class="text-xl font-bold">Next Up <span id="queue-count" class="text-zinc-500 text-sm font-normal ml-2"></span></h2>
+                <div>
+                    <h2 class="text-xl font-bold">Next Up</h2>
+                    <p id="queue-info" class="text-xs text-zinc-500 uppercase tracking-widest mt-1">Queue is empty</p>
+                </div>
                 <button onclick="document.getElementById('modal-queue').classList.add('hidden')" class="p-2"><i data-lucide="x" class="w-6 h-6"></i></button>
             </div>
-            <p class="text-[10px] text-zinc-500 uppercase tracking-widest">Swipe left to remove</p>
             <div id="queue-list" class="space-y-2 overflow-y-auto no-scrollbar pb-20"></div>
         </div>
 
+        <!-- Add to Playlist Modal -->
+        <div id="modal-add-playlist" class="hidden fixed inset-0 z-[260] glass p-6 pt-20 flex flex-col animate-in fade-in">
+            <h3 class="text-lg font-bold mb-4">Add to Playlist</h3>
+            <div id="playlist-select-list" class="space-y-2 overflow-y-auto"></div>
+        </div>
+
         <!-- Wrapped / Analytics View -->
-        <div id="wrapped-modal" class="hidden fixed inset-0 z-[200] overflow-y-auto">
+        <div id="wrapped-modal" class="hidden fixed inset-0 z-[300] bg-black overflow-y-auto">
             <div class="min-h-screen flex flex-col items-center justify-center p-6 text-center space-y-8 pb-24">
                 <button onclick="document.getElementById('wrapped-modal').classList.add('hidden')" class="absolute top-6 right-6 p-2 bg-white/10 rounded-full"><i data-lucide="x" class="w-6 h-6"></i></button>
                 
-                <div id="wrapped-slide-container" class="w-full max-w-sm">
-                    <!-- Slides injected via JS -->
+                <div id="wrapped-slide-container" class="w-full max-w-sm transition-all duration-500">
+                    <!-- Slides -->
                 </div>
 
-                <button id="wrapped-next-btn" onclick="Wrapped.nextSlide()" class="px-8 py-3 bg-white text-black rounded-full font-bold uppercase tracking-wider text-sm hover:scale-105 transition">Next Story</button>
+                <button id="wrapped-next-btn" onclick="Wrapped.nextSlide()" class="hidden px-8 py-3 bg-white text-black rounded-full font-bold uppercase tracking-wider text-sm hover:scale-105 transition">Next Story</button>
             </div>
         </div>
 
-        <!-- Playlist Creator Modal -->
-        <div id="modal-create-playlist" class="hidden fixed inset-0 z-[170] glass flex items-center justify-center p-6">
-            <div class="bg-zinc-900 border border-white/10 w-full max-w-sm rounded-2xl p-6 space-y-4">
-                <h3 class="font-bold text-lg">New Playlist</h3>
-                <input type="text" id="new-playlist-name" placeholder="My Awesome Mix" class="w-full bg-black border border-zinc-700 p-3 rounded-lg text-sm focus:border-white outline-none">
-                <div class="flex justify-end gap-2">
-                    <button onclick="document.getElementById('modal-create-playlist').classList.add('hidden')" class="px-4 py-2 text-xs font-bold uppercase text-zinc-400">Cancel</button>
-                    <button onclick="Library.createPlaylist()" class="px-4 py-2 text-xs font-bold uppercase bg-white text-black rounded-lg">Create</button>
-                </div>
-            </div>
+        <!-- Toast Notification -->
+        <div id="toast" class="absolute bottom-24 left-1/2 -translate-x-1/2 bg-white text-black px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider shadow-xl z-[400] flex items-center gap-2 pointer-events-none">
+            <i data-lucide="check-circle" class="w-4 h-4"></i> <span id="toast-msg">Action Successful</span>
         </div>
 
         <input type="file" id="local-file-input" class="hidden" accept="audio/*" multiple>
@@ -401,24 +455,21 @@
             user: "Guest User",
             currentTrack: null,
             queue: [],
-            history: [], // Stores full track objects
+            history: [], 
             favorites: [],
-            playlists: [], // { id, name, tracks: [] }
+            playlists: [], 
             isPlaying: false,
             loop: 'none',
             isShuffle: false,
             vizActive: true,
-            genres: new Set(), // Taste profile
-            wrapped: {
-                slide: 0,
-                data: {}
-            }
+            genres: new Set(), 
+            wrapped: { slide: 0, data: {} }
         };
 
         const Database = {
             async init() {
                 return new Promise((resolve) => {
-                    const request = indexedDB.open('SniplitDB', 2); // Version bump for schema update
+                    const request = indexedDB.open('SniplitDB', 3);
                     request.onupgradeneeded = (e) => {
                         const db = e.target.result;
                         if (!db.objectStoreNames.contains('settings')) db.createObjectStore('settings');
@@ -449,16 +500,10 @@
                 const tx = this.db.transaction('library', 'readwrite');
                 tx.objectStore('library').put(track);
             },
-            async getLibrary() {
-                return new Promise(res => {
-                    const tx = this.db.transaction('library', 'readonly');
-                    const req = tx.objectStore('library').getAll();
-                    req.onsuccess = () => res(req.result);
-                });
-            },
             async savePlaylists(lists) {
                 const tx = this.db.transaction('playlists', 'readwrite');
                 const store = tx.objectStore('playlists');
+                store.clear(); // Simple replace strategy for this scope
                 lists.forEach(l => store.put(l));
             },
             async getPlaylists() {
@@ -496,16 +541,14 @@
                 this.el.src = track.previewUrl || track.localUrl;
                 if(autoplay) this.el.play();
                 
-                // Add to history and analytics
                 State.history.unshift(track);
-                State.history = State.history.slice(0, 100); // Keep last 100
+                State.history = State.history.slice(0, 200);
                 if(track.primaryGenreName) State.genres.add(track.primaryGenreName);
                 
                 Database.save('history', State.history);
                 Database.saveTrack(track);
                 UI.updatePlayerUI();
                 
-                // Fetch Lyrics
                 LyricsEngine.fetch(track);
             },
 
@@ -521,7 +564,8 @@
 
             onTimeUpdate() {
                 const pct = (this.el.currentTime / this.el.duration) * 100;
-                document.getElementById('player-progress').value = pct || 0;
+                const slider = document.getElementById('player-progress');
+                if(slider) slider.value = pct || 0;
                 document.getElementById('mini-progress').style.width = `${pct || 0}%`;
                 document.getElementById('time-cur').innerText = this.formatTime(this.el.currentTime);
                 document.getElementById('time-total').innerText = this.formatTime(this.el.duration);
@@ -548,14 +592,14 @@
 
         const LyricsEngine = {
             lines: [],
+            userScrolling: false,
+            scrollTimeout: null,
             
             async fetch(track) {
                 document.getElementById('lyrics-container').innerHTML = '<p class="text-zinc-600 text-sm animate-pulse">Searching LRCLIB...</p>';
                 this.lines = [];
 
                 try {
-                    // 1. Try LRCLIB (Synced)
-                    const query = `${track.artistName} ${track.trackName}`;
                     const res = await fetch(`https://lrclib.net/api/get?artist_name=${encodeURIComponent(track.artistName)}&track_name=${encodeURIComponent(track.trackName)}`);
                     const data = await res.json();
                     
@@ -566,7 +610,6 @@
                     }
                 } catch (e) {
                     try {
-                        // 2. Fallback to lyrics.ovh (Plain text)
                         const res = await fetch(`https://lyrics.ovh/v1/${encodeURIComponent(track.artistName)}/${encodeURIComponent(track.trackName)}`);
                         if (res.ok) {
                             const text = await res.text();
@@ -575,9 +618,16 @@
                             throw new Error("Not found");
                         }
                     } catch (e2) {
-                         document.getElementById('lyrics-container').innerHTML = '<p class="text-zinc-600 text-sm">Lyrics not found.</p>';
+                         document.getElementById('lyrics-container').innerHTML = '<p class="text-zinc-600 text-sm">Instrumental or lyrics not found.</p>';
                     }
                 }
+                
+                // Setup scrolling listeners after render
+                const container = document.getElementById('lyrics-container');
+                container.addEventListener('touchstart', () => { this.userScrolling = true; clearTimeout(this.scrollTimeout); });
+                container.addEventListener('touchend', () => { 
+                    this.scrollTimeout = setTimeout(() => { this.userScrolling = false; }, 3000); // Resume auto-scroll after 3s of no touch
+                });
             },
 
             parseSynced(text) {
@@ -602,24 +652,21 @@
             render() {
                 const container = document.getElementById('lyrics-container');
                 container.innerHTML = this.lines.map((l, i) => 
-                    `<p id="lyric-${i}" class="lyric-line text-lg leading-relaxed transition-all duration-300">${l.text}</p>`
+                    `<p id="lyric-${i}" class="lyric-line text-lg leading-relaxed transition-all duration-300" onclick="AudioEngine.seekByLyric(${l.time})">${l.text}</p>`
                 ).join('');
             },
 
             sync() {
-                if (this.lines.length === 0 || !State.isPlaying) return;
+                if (this.lines.length === 0 || !State.isPlaying || this.userScrolling) return;
                 const curTime = AudioEngine.el.currentTime;
                 
-                // Find active line
                 let activeIdx = -1;
                 if (this.lines[0].time !== null) {
-                    // Synced
                     activeIdx = this.lines.findIndex((l, i) => 
                         curTime >= l.time && (i === this.lines.length - 1 || curTime < this.lines[i+1].time)
                     );
                 }
 
-                // Update UI
                 document.querySelectorAll('.lyric-line').forEach(el => el.classList.remove('active'));
                 if (activeIdx !== -1) {
                     const el = document.getElementById(`lyric-${activeIdx}`);
@@ -642,15 +689,13 @@
 
             add(track) {
                 State.queue.push(track);
-                UI.renderQueue(); // Refresh if open
+                UI.showToast("Added to queue");
             },
 
             remove(index) {
                 if (index === this.index) {
-                    // Removing current song
-                    if (State.queue.length === 1) {
-                         this.next(); // Will stop or radio
-                    } else {
+                    if (State.queue.length === 1) { this.next(); } 
+                    else {
                         State.queue.splice(index, 1);
                         AudioEngine.load(State.queue[index]);
                     }
@@ -669,7 +714,6 @@
                 if (this.index === from) this.index = to;
                 else if (from < this.index && to >= this.index) this.index--;
                 else if (from > this.index && to <= this.index) this.index++;
-                
                 UI.renderQueue();
             },
 
@@ -682,13 +726,9 @@
                 
                 this.index++;
                 if (this.index >= State.queue.length) {
-                    if (State.loop === 'all') {
-                        this.index = 0;
-                    } else {
-                        this.index--;
-                        this.fetchSimilar(); // Radio Mode
-                        return;
-                    }
+                    // Advanced Radio Mode
+                    this.startRadio();
+                    return;
                 }
                 AudioEngine.load(State.queue[this.index]);
             },
@@ -718,15 +758,45 @@
             toggleShuffle() {
                 State.isShuffle = !State.isShuffle;
                 document.getElementById('shuffle-btn').className = State.isShuffle ? 'text-white' : 'text-zinc-500';
+                if(State.isShuffle && State.queue.length > 1) {
+                    // Shuffle current queue preserving current song
+                    const current = State.queue[this.index];
+                    const rest = State.queue.filter((_, i) => i !== this.index);
+                    for (let i = rest.length - 1; i > 0; i--) {
+                        const j = Math.floor(Math.random() * (i + 1));
+                        [rest[i], rest[j]] = [rest[j], rest[i]];
+                    }
+                    State.queue = [current, ...rest];
+                    this.index = 0;
+                    UI.showToast("Queue shuffled");
+                }
             },
 
-            async fetchSimilar() {
+            async startRadio() {
+                UI.showToast("Radio Mode: Finding Similar Tracks...");
+                this.index = State.queue.length - 1; // Stay at last for a moment
+                
                 if (!State.currentTrack) return;
-                const results = await API.search(State.currentTrack.artistName + " " + State.currentTrack.primaryGenreName);
-                const filtered = results.filter(t => !State.queue.some(q => q.trackId === t.trackId));
-                if (filtered.length > 0) {
-                    this.add(filtered[0]);
+                
+                // Advanced Recommendation: Combine Artist + Genre searches
+                const artistResults = await API.search(State.currentTrack.artistName);
+                const genreResults = await API.search(State.currentTrack.primaryGenreName || "Pop");
+                
+                // Filter out already played/queued
+                const knownIds = new Set([...State.queue, ...State.history].map(t => t.trackId));
+                const candidates = [...artistResults, ...genreResults]
+                    .filter(t => !knownIds.has(t.trackId) && t.trackId !== State.currentTrack.trackId);
+                
+                if (candidates.length > 0) {
+                    // Add top 5 candidates
+                    const newSongs = candidates.slice(0, 5);
+                    State.queue.push(...newSongs);
                     this.next();
+                } else {
+                    // Fallback if no results
+                    State.loop = 'all';
+                    this.index = 0;
+                    AudioEngine.load(State.queue[0]);
                 }
             }
         };
@@ -754,9 +824,11 @@
                 const idx = State.favorites.findIndex(t => t.trackId === State.currentTrack.trackId);
                 if (idx > -1) {
                     State.favorites.splice(idx, 1);
+                    UI.showToast("Removed from Liked Songs");
                 } else {
                     State.favorites.push(State.currentTrack);
                     Database.saveTrack(State.currentTrack);
+                    UI.showToast("Added to Liked Songs");
                 }
                 Database.save('favorites', State.favorites);
                 UI.updatePlayerUI();
@@ -778,12 +850,34 @@
                 document.getElementById('modal-create-playlist').classList.add('hidden');
                 document.getElementById('new-playlist-name').value = '';
                 UI.renderLibrary();
+                UI.showToast("Playlist Created");
             },
-            
+
+            async addToPlaylist(playlistId) {
+                if(!State.currentTrack) return;
+                const pl = State.playlists.find(p => p.id === playlistId);
+                if(pl) {
+                    pl.tracks.push(State.currentTrack);
+                    await Database.savePlaylists(State.playlists);
+                    UI.showToast(`Added to ${pl.name}`);
+                    document.getElementById('modal-add-playlist').classList.add('hidden');
+                }
+            },
+
             async deletePlaylist(id) {
                 State.playlists = State.playlists.filter(p => p.id !== id);
                 await Database.savePlaylists(State.playlists);
                 UI.renderLibrary();
+                UI.showToast("Playlist Deleted");
+            },
+
+            async removeFromPlaylist(playlistId, trackId) {
+                const pl = State.playlists.find(p => p.id === playlistId);
+                if(pl) {
+                    pl.tracks = pl.tracks.filter(t => t.trackId !== trackId);
+                    await Database.savePlaylists(State.playlists);
+                    UI.renderPlaylistView(pl);
+                }
             }
         };
 
@@ -811,16 +905,24 @@
         const Wrapped = {
             calculate() {
                 const history = State.history;
+                
+                // Prevent usage if lack of data
+                if (!history || history.length < 5) {
+                    document.getElementById('wrapped-modal').classList.add('hidden');
+                    UI.showToast("Listen to more music to unlock Wrapped!");
+                    return false;
+                }
+
                 const topArtists = {};
                 const topGenres = {};
                 let totalMs = 0;
+                let nightTracks = 0;
 
                 history.forEach(t => {
                     if(!topArtists[t.artistName]) topArtists[t.artistName] = 0;
                     topArtists[t.artistName]++;
                     if(!topGenres[t.primaryGenreName]) topGenres[t.primaryGenreName] = 0;
                     topGenres[t.primaryGenreName]++;
-                    // Approximate duration if iTunes data available, else default 3m
                     totalMs += (t.trackTimeMillis || 180000); 
                 });
 
@@ -831,8 +933,10 @@
                     totalHours: (totalMs / (1000*60*60)).toFixed(1),
                     topArtist: sortedArtists[0] ? sortedArtists[0][0] : "Unknown",
                     topGenre: sortedGenres[0] ? sortedGenres[0][0] : "Unknown",
-                    trackCount: history.length
+                    trackCount: history.length,
+                    vibe: nightTracks > history.length / 2 ? "Nocturnal" : "Daytime"
                 };
+                return true;
             },
 
             renderSlide() {
@@ -843,53 +947,28 @@
                 let html = '';
                 
                 if (slide === 0) {
-                    html = `
-                        <div class="space-y-2">
-                            <p class="text-zinc-500 font-mono text-xs uppercase tracking-widest">Your 2024 Listening</p>
-                            <h1 class="text-5xl font-bold text-white">SNIPLIT<br><span class="text-green-400">WRAPPED</span></h1>
-                        </div>
-                    `;
+                    html = `<div class="space-y-4 animate-pulse"><div class="w-20 h-20 rounded-full bg-zinc-800 mx-auto"></div><h1 class="text-4xl font-bold text-white">2024 Wrapped</h1><p class="text-zinc-500">Your year in music</p></div>`;
                 } else if (slide === 1) {
-                    html = `
-                        <div class="space-y-6">
-                            <p class="text-zinc-400 text-sm">Total Listening Time</p>
-                            <h2 class="text-6xl font-bold text-white">${data.totalHours}<span class="text-2xl text-zinc-500 ml-2">hrs</span></h2>
-                        </div>
-                    `;
+                    html = `<div class="text-center space-y-2"><p class="text-zinc-500 uppercase text-xs">Total Listening</p><h2 class="text-6xl font-bold stat-gradient">${data.totalHours}<span class="text-2xl text-zinc-500 ml-1">hrs</span></h2></div>`;
                 } else if (slide === 2) {
-                    html = `
-                        <div class="space-y-6">
-                            <p class="text-zinc-400 text-sm">Top Artist</p>
-                            <h2 class="text-4xl font-bold text-white leading-tight">${data.topArtist}</h2>
-                            <div class="w-full bg-zinc-800 h-2 rounded-full overflow-hidden">
-                                <div class="bg-white h-full w-[80%]"></div>
-                            </div>
-                        </div>
-                    `;
+                    html = `<div class="text-center space-y-4"><p class="text-zinc-500 uppercase text-xs">Top Artist</p><h2 class="text-4xl font-bold text-white">${data.topArtist}</h2><div class="h-1 w-3/4 bg-zinc-800 mx-auto rounded-full overflow-hidden"><div class="bg-green-500 h-full w-full animate-pulse"></div></div></div>`;
+                } else if (slide === 3) {
+                    html = `<div class="text-center space-y-4"><p class="text-zinc-500 uppercase text-xs">Top Genre</p><h2 class="text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-600">${data.topGenre}</h2></div>`;
                 } else {
-                    html = `
-                        <div class="space-y-6">
-                            <p class="text-zinc-400 text-sm">Your Vibe</p>
-                            <h2 class="text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-600">${data.topGenre}</h2>
-                            <p class="text-xs text-zinc-500">You explored ${data.trackCount} tracks.</p>
-                        </div>
-                    `;
+                    html = `<div class="text-center space-y-6"><h1 class="text-3xl font-bold text-white">Thanks for listening</h1><p class="text-zinc-500">${data.trackCount} tracks discovered.</p></div>`;
+                    document.getElementById('wrapped-next-btn').innerText = "Close";
+                    document.getElementById('wrapped-next-btn').onclick = () => document.getElementById('wrapped-modal').classList.add('hidden');
                 }
                 
-                // Simple transition effect
                 container.innerHTML = html;
-                container.classList.remove('opacity-0');
-                container.classList.add('animate-in', 'fade-in', 'zoom-in', 'duration-500');
+                document.getElementById('wrapped-next-btn').classList.remove('hidden');
             },
 
             nextSlide() {
-                const max = 3;
+                const max = 4;
                 if(State.wrapped.slide < max) {
                     State.wrapped.slide++;
                     this.renderSlide();
-                } else {
-                    document.getElementById('wrapped-modal').classList.add('hidden');
-                    State.wrapped.slide = 0;
                 }
             }
         };
@@ -898,13 +977,11 @@
             viewStack: ['home'],
 
             async init() {
-                // Time update
                 setInterval(() => {
                     const now = new Date();
                     document.getElementById('system-time').innerText = now.getHours() + ":" + (now.getMinutes() < 10 ? '0' : '') + now.getMinutes();
                 }, 1000);
 
-                // Load User Data
                 const name = await Database.get('user_name');
                 if (name) {
                     State.user = name;
@@ -912,14 +989,13 @@
                 }
                 document.getElementById('greeting').innerText = `Welcome, ${State.user}`;
                 
-                // Load History
                 const history = await Database.get('history');
                 if(history) State.history = history;
 
-                // Load Playlists
                 State.playlists = await Database.getPlaylists();
+                const favs = await Database.get('favorites');
+                if(favs) State.favorites = favs;
 
-                // Search input
                 document.getElementById('main-search').addEventListener('input', debounce(async (e) => {
                     if (e.target.value.length < 2) return;
                     const results = await API.search(e.target.value);
@@ -931,22 +1007,22 @@
             },
 
             toggleView(id) {
-                document.querySelectorAll('.view-section').forEach(v => v.classList.add('hidden'));
-                document.getElementById(`view-${id}`).classList.remove('hidden');
+                // Hide all specific sections
+                ['home', 'search', 'library', 'artist', 'playlist'].forEach(v => {
+                    document.getElementById(`view-${v}`).classList.add('hidden');
+                });
                 
+                // Show requested
+                const el = document.getElementById(`view-${id}`);
+                if(el) el.classList.remove('hidden');
+                
+                // Update nav
                 document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-                const navBtn = document.querySelector(`.nav-btn[data-view="${id}"]`);
-                if(navBtn) navBtn.classList.add('active');
-
-                if (id === 'settings') {
-                    document.getElementById('modal-settings').classList.remove('hidden');
-                } else {
-                    document.getElementById('modal-settings').classList.add('hidden');
+                if(['home', 'search', 'library'].includes(id)) {
+                    const navBtn = document.querySelector(`.nav-btn[data-view="${id}"]`);
+                    if(navBtn) navBtn.classList.add('active');
+                    this.viewStack.push(id);
                 }
-
-                if (id === 'library') this.renderLibrary();
-                
-                this.viewStack.push(id);
             },
 
             back() {
@@ -954,6 +1030,8 @@
                     this.viewStack.pop();
                     const prev = this.viewStack.pop();
                     this.toggleView(prev);
+                } else {
+                    this.toggleView('home');
                 }
             },
 
@@ -972,26 +1050,68 @@
                 document.getElementById('lyrics-panel').classList.toggle('hidden');
             },
 
-            showWrapped() {
-                Wrapped.calculate();
-                Wrapped.renderSlide();
-                document.getElementById('wrapped-modal').classList.remove('hidden');
+            openSettings() {
+                document.getElementById('modal-settings').classList.remove('hidden');
+            },
+            
+            closeSettings() {
+                document.getElementById('modal-settings').classList.add('hidden');
             },
 
             showCreatePlaylist() {
-                document.getElementById('modal-create-playlist').classList.remove('hidden');
+                const html = `
+                <div id="modal-create-playlist" class="fixed inset-0 z-[260] glass p-6 pt-20 flex flex-col animate-in fade-in">
+                    <h3 class="text-lg font-bold mb-4">New Playlist</h3>
+                    <input type="text" id="new-playlist-name" placeholder="My Awesome Mix" class="w-full bg-black border border-zinc-700 p-3 rounded-lg text-sm focus:border-white outline-none mb-4">
+                    <div class="flex justify-end gap-2">
+                        <button onclick="document.getElementById('modal-create-playlist').remove()" class="px-4 py-2 text-xs font-bold uppercase text-zinc-400">Cancel</button>
+                        <button onclick="Library.createPlaylist()" class="px-4 py-2 text-xs font-bold uppercase bg-white text-black rounded-lg">Create</button>
+                    </div>
+                </div>`;
+                document.body.insertAdjacentHTML('beforeend', html);
+                document.getElementById('new-playlist-name').focus();
+            },
+
+            openAddToPlaylist() {
+                if(!State.currentTrack) return;
+                const list = document.getElementById('playlist-select-list');
+                list.innerHTML = '';
+                
+                if(State.playlists.length === 0) {
+                    list.innerHTML = '<p class="text-sm text-zinc-500">No playlists found.</p>';
+                } else {
+                    State.playlists.forEach(pl => {
+                        const btn = document.createElement('button');
+                        btn.className = 'w-full text-left p-3 bg-zinc-900 rounded-lg flex items-center justify-between';
+                        btn.innerHTML = `<span>${pl.name}</span> <i data-lucide="chevron-right" class="w-4 h-4"></i>`;
+                        btn.onclick = () => Library.addToPlaylist(pl.id);
+                        list.appendChild(btn);
+                    });
+                }
+                document.getElementById('modal-add-playlist').classList.remove('hidden');
+            },
+
+            showWrapped() {
+                if(Wrapped.calculate()) {
+                    State.wrapped.slide = 0;
+                    Wrapped.renderSlide();
+                    document.getElementById('wrapped-modal').classList.remove('hidden');
+                    document.getElementById('wrapped-next-btn').innerText = "Next Story";
+                    document.getElementById('wrapped-next-btn').onclick = () => Wrapped.nextSlide();
+                }
+            },
+
+            showToast(msg) {
+                const t = document.getElementById('toast');
+                document.getElementById('toast-msg').innerText = msg;
+                t.classList.add('show');
+                setTimeout(() => t.classList.remove('show'), 2500);
             },
 
             async loadHomeData() {
-                // Smart Discovery based on history
                 let queries = ["Global Top 100"];
-                if (State.genres.size > 0) {
-                    queries = Array.from(State.genres).slice(0, 3);
-                } else if (State.history.length > 0) {
-                    // Fallback to artist names
-                    const artists = [...new Set(State.history.map(h => h.artistName))];
-                    queries = artists.slice(0, 3);
-                }
+                if (State.genres.size > 0) queries = Array.from(State.genres).slice(0, 3);
+                else if (State.history.length > 0) queries = [...new Set(State.history.map(h => h.artistName))].slice(0, 3);
 
                 const allResults = [];
                 for(let q of queries) {
@@ -1001,38 +1121,26 @@
 
                 const grid = document.getElementById('recs-grid');
                 grid.innerHTML = '';
-                
-                // Shuffle results for variety
                 const shuffled = allResults.sort(() => 0.5 - Math.random()).slice(0, 10);
-
                 shuffled.forEach(t => {
-                    const card = document.createElement('div');
-                    card.className = 'flex-shrink-0 w-36 space-y-2 cursor-pointer hover-lift';
-                    card.innerHTML = `
-                        <img src="${t.artworkUrl100.replace('100x100', '400x400')}" class="w-36 h-36 rounded-2xl object-cover bg-zinc-900 border border-white/5">
-                        <div class="px-1">
-                            <p class="text-[11px] font-bold truncate">${t.trackName}</p>
-                            <p class="text-[9px] text-zinc-500 font-semibold truncate uppercase">${t.artistName}</p>
-                        </div>
-                    `;
-                    card.onclick = () => Queue.set([t]);
-                    grid.appendChild(card);
+                    grid.innerHTML += `
+                        <div class="flex-shrink-0 w-36 space-y-2 cursor-pointer hover-lift" onclick="Queue.set([${JSON.stringify(t).replace(/"/g, '&quot;')}])">
+                            <img src="${t.artworkUrl100.replace('100x100', '400x400')}" class="w-36 h-36 rounded-2xl object-cover bg-zinc-900 border border-white/5">
+                            <div class="px-1">
+                                <p class="text-[11px] font-bold truncate">${t.trackName}</p>
+                                <p class="text-[9px] text-zinc-500 font-semibold truncate uppercase">${t.artistName}</p>
+                            </div>
+                        </div>`;
                 });
 
-                // Recent Grid (Recents)
                 const recGrid = document.getElementById('recents-grid');
                 recGrid.innerHTML = '';
                 State.history.slice(0, 4).forEach(t => {
-                    const item = document.createElement('div');
-                    item.className = 'flex items-center gap-3 bg-zinc-900/40 p-2 rounded-xl border border-white/5 hover:bg-zinc-900/80 transition cursor-pointer';
-                    item.innerHTML = `
-                        <img src="${t.artworkUrl100}" class="w-10 h-10 rounded-lg">
-                        <div class="min-w-0 flex-1">
-                            <p class="text-[10px] font-bold truncate">${t.trackName}</p>
-                        </div>
-                    `;
-                    item.onclick = () => Queue.set([t]);
-                    recGrid.appendChild(item);
+                    recGrid.innerHTML += `
+                        <div class="flex items-center gap-3 bg-zinc-900/40 p-2 rounded-xl border border-white/5 hover:bg-zinc-900/80 transition cursor-pointer" onclick="Queue.set([${JSON.stringify(t).replace(/"/g, '&quot;')}])">
+                            <img src="${t.artworkUrl100}" class="w-10 h-10 rounded-lg">
+                            <div class="min-w-0 flex-1"><p class="text-[10px] font-bold truncate">${t.trackName}</p></div>
+                        </div>`;
                 });
             },
 
@@ -1040,66 +1148,117 @@
                 const container = document.getElementById('search-results');
                 container.innerHTML = '';
                 results.forEach(t => {
-                    const row = document.createElement('div');
-                    row.className = 'flex items-center gap-4 group cursor-pointer';
-                    row.innerHTML = `
-                        <div class="relative w-12 h-12 flex-shrink-0">
-                            <img src="${t.artworkUrl100}" class="w-full h-full rounded-lg object-cover">
-                            <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition rounded-lg">
-                                <i data-lucide="play" class="w-5 h-5 fill-white text-white"></i>
+                    container.innerHTML += `
+                        <div class="flex items-center gap-4 group cursor-pointer" onclick="Queue.set([${JSON.stringify(t).replace(/"/g, '&quot;')}])">
+                            <div class="relative w-12 h-12 flex-shrink-0">
+                                <img src="${t.artworkUrl100}" class="w-full h-full rounded-lg object-cover">
+                                <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition rounded-lg">
+                                    <i data-lucide="play" class="w-5 h-5 fill-white text-white"></i>
+                                </div>
                             </div>
-                        </div>
-                        <div class="flex-1 min-w-0">
-                            <div class="flex items-center gap-1.5">
-                                <h4 class="text-sm font-semibold truncate">${t.trackName}</h4>
-                                ${t.trackExplicitness === 'explicit' ? '<span class="bg-zinc-800 text-zinc-500 text-[8px] font-bold px-1 rounded flex-shrink-0">E</span>' : ''}
+                            <div class="flex-1 min-w-0">
+                                <div class="flex items-center gap-1.5">
+                                    <h4 class="text-sm font-semibold truncate">${t.trackName}</h4>
+                                    ${t.trackExplicitness === 'explicit' ? '<span class="bg-zinc-800 text-zinc-500 text-[8px] font-bold px-1 rounded flex-shrink-0">E</span>' : ''}
+                                </div>
+                                <p class="text-xs text-zinc-500 font-medium uppercase tracking-wide hover:underline" onclick="event.stopPropagation(); UI.openArtistProfile(${JSON.stringify(t).replace(/"/g, '&quot;')})">${t.artistName}</p>
                             </div>
-                            <p class="text-xs text-zinc-500 font-medium uppercase tracking-wide hover:underline" onclick="event.stopPropagation(); UI.renderArtistProfile(${t.artistId}, '${t.artistName.replace(/'/g, "\\'")}')">${t.artistName}</p>
-                        </div>
-                        <button class="p-2 text-zinc-600 hover:text-white" onclick="event.stopPropagation(); Queue.add(${JSON.stringify(t).replace(/"/g, '&quot;')})"><i data-lucide="plus" class="w-4 h-4"></i></button>
-                    `;
-                    row.onclick = () => Queue.set([t]);
-                    container.appendChild(row);
+                            <button class="p-2 text-zinc-600 hover:text-white" onclick="event.stopPropagation(); Queue.add(${JSON.stringify(t).replace(/"/g, '&quot;')})"><i data-lucide="plus" class="w-4 h-4"></i></button>
+                        </div>`;
                 });
                 lucide.createIcons();
             },
 
-            async renderArtistProfile(id, name) {
-                this.toggleView('artist');
-                const hero = document.getElementById('artist-hero');
-                hero.innerHTML = `<h1 class="text-5xl font-bold tracking-tighter">${name}</h1><p class="text-zinc-500 text-xs font-bold uppercase tracking-[0.4em]">Verified High Fidelity</p>`;
+            async openArtistProfile(trackObj) {
+                if(!trackObj.artistId && !trackObj.artistName) return;
                 
+                this.toggleView('artist');
+                
+                // Use Search if ID not available
+                const id = trackObj.artistId || 0;
+                const name = trackObj.artistName;
+                
+                document.getElementById('artist-hero').innerHTML = `<h1 class="text-5xl font-bold tracking-tighter">${name}</h1><p class="text-zinc-500 text-xs font-bold uppercase tracking-[0.4em]">Artist Profile</p>`;
+                
+                // Load Top Tracks
                 const topTracks = await API.search(name);
                 const trackList = document.getElementById('artist-top-tracks');
-                trackList.innerHTML = '<h3 class="text-sm font-bold text-zinc-600 uppercase mb-4">Top Records</h3>';
+                trackList.innerHTML = `
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-sm font-bold text-zinc-600 uppercase">Popular</h3>
+                        <button onclick="Queue.set(${JSON.stringify(topTracks).replace(/"/g, '&quot;')})" class="text-xs bg-zinc-800 px-3 py-1 rounded-full hover:bg-white hover:text-black transition">Play All</button>
+                    </div>`;
+                
                 topTracks.slice(0, 5).forEach((t, i) => {
-                    const row = document.createElement('div');
-                    row.className = 'flex items-center gap-4 py-3 border-b border-white/5 cursor-pointer';
-                    row.innerHTML = `<span class="text-xs font-mono text-zinc-700 w-4">${i+1}</span><div class="flex-1 text-sm font-medium">${t.trackName}</div><span class="text-[10px] text-zinc-600 font-mono">${AudioEngine.formatTime(t.trackTimeMillis/1000)}</span>`;
-                    row.onclick = () => Queue.set([t]);
-                    trackList.appendChild(row);
+                    trackList.innerHTML += `
+                        <div class="flex items-center gap-4 py-3 border-b border-white/5 cursor-pointer hover:bg-white/5 -mx-4 px-4" onclick="Queue.set([${JSON.stringify(t).replace(/"/g, '&quot;')}])">
+                            <span class="text-xs font-mono text-zinc-700 w-4">${i+1}</span>
+                            <div class="flex-1 text-sm font-medium truncate">${t.trackName}</div>
+                        </div>`;
                 });
 
-                const albums = await API.getArtistDiscography(id);
-                const albumGrid = document.getElementById('artist-albums');
-                albumGrid.innerHTML = '';
-                albums.slice(1).forEach(a => {
-                    const item = document.createElement('div');
-                    item.className = 'space-y-2';
-                    item.innerHTML = `<img src="${a.artworkUrl100.replace('100x100', '400x400')}" class="w-full aspect-square rounded-xl object-cover border border-white/5"><p class="text-[10px] font-bold truncate">${a.collectionName}</p>`;
-                    albumGrid.appendChild(item);
-                });
+                // Load Albums
+                if(id) {
+                    const albums = await API.getArtistDiscography(id);
+                    const albumGrid = document.getElementById('artist-albums');
+                    albumGrid.innerHTML = '';
+                    albums.slice(1).forEach(a => {
+                        albumGrid.innerHTML += `
+                            <div class="space-y-2 group cursor-pointer" onclick="Queue.set([${JSON.stringify(a).replace(/"/g, '&quot;')}])">
+                                <img src="${a.artworkUrl100.replace('100x100', '400x400')}" class="w-full aspect-square rounded-xl object-cover border border-white/5 group-hover:border-white/20 transition">
+                                <p class="text-[10px] font-bold truncate">${a.collectionName}</p>
+                            </div>`;
+                    });
+                }
+            },
+
+            renderPlaylistView(playlist) {
+                this.toggleView('playlist');
+                document.getElementById('playlist-hero').innerHTML = `
+                    <div class="flex items-end gap-4">
+                        <div class="w-24 h-24 bg-zinc-800 rounded-lg flex items-center justify-center border border-white/10">
+                            <i data-lucide="music" class="w-10 h-10 text-zinc-500"></i>
+                        </div>
+                        <div>
+                            <h1 class="text-3xl font-bold leading-none mb-2">${playlist.name}</h1>
+                            <p class="text-xs text-zinc-500 font-bold uppercase tracking-wider">${playlist.tracks.length} Songs</p>
+                        </div>
+                    </div>
+                    <div class="flex gap-4 pt-4">
+                        <button onclick="Queue.set(${JSON.stringify(playlist.tracks).replace(/"/g, '&quot;')})" class="w-14 h-14 bg-white rounded-full flex items-center justify-center shadow-lg active:scale-95 transition"><i data-lucide="play" class="w-6 h-6 fill-black text-black"></i></button>
+                        <button onclick="Library.deletePlaylist('${playlist.id}')" class="w-14 h-14 border border-zinc-700 rounded-full flex items-center justify-center text-zinc-400 active:scale-95 transition"><i data-lucide="trash" class="w-6 h-6"></i></button>
+                    </div>
+                `;
+
+                const list = document.getElementById('playlist-tracks');
+                list.innerHTML = '';
+                if(playlist.tracks.length === 0) {
+                    list.innerHTML = '<p class="text-center text-zinc-600 text-sm py-10">Playlist is empty. Add songs from the player.</p>';
+                } else {
+                    playlist.tracks.forEach((t, i) => {
+                        list.innerHTML += `
+                            <div class="flex items-center gap-4 py-3 border-b border-white/5 group">
+                                <span class="text-xs font-mono text-zinc-700 w-4">${i+1}</span>
+                                <div class="flex-1 min-w-0 cursor-pointer" onclick="Queue.set([${JSON.stringify(t).replace(/"/g, '&quot;')}])">
+                                    <p class="text-sm font-medium truncate">${t.trackName}</p>
+                                    <p class="text-[10px] text-zinc-500 uppercase">${t.artistName}</p>
+                                </div>
+                                <button onclick="Library.removeFromPlaylist('${playlist.id}', '${t.trackId}')" class="opacity-0 group-hover:opacity-100 p-2 text-zinc-500 hover:text-red-500 transition"><i data-lucide="x" class="w-4 h-4"></i></button>
+                            </div>`;
+                    });
+                }
+                lucide.createIcons();
             },
 
             async renderLibrary() {
                 const list = document.getElementById('library-list');
+                let html = '';
                 
                 // Render Playlists
-                let html = '';
                 State.playlists.forEach(pl => {
                     html += `
-                        <div class="flex items-center justify-between p-3 bg-zinc-900/30 rounded-xl border border-white/5">
-                            <div class="flex items-center gap-3">
+                        <div class="flex items-center justify-between p-3 bg-zinc-900/30 rounded-xl border border-white/5 mb-3 cursor-pointer" onclick="UI.renderPlaylistView(State.playlists.find(p => p.id === '${pl.id}'))">
+                             <div class="flex items-center gap-3">
                                 <div class="w-10 h-10 rounded-full bg-gradient-to-br from-zinc-700 to-black flex items-center justify-center">
                                     <i data-lucide="list-music" class="w-4 h-4 text-white"></i>
                                 </div>
@@ -1108,30 +1267,25 @@
                                     <p class="text-[10px] text-zinc-500 uppercase">${pl.tracks.length} Songs</p>
                                 </div>
                             </div>
-                            <button onclick="Library.deletePlaylist('${pl.id}')" class="p-2 text-zinc-600 hover:text-red-500"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
-                        </div>
-                    `;
+                            <i data-lucide="chevron-right" class="w-4 h-4 text-zinc-600"></i>
+                        </div>`;
                 });
 
                 // Render Liked Songs
-                const favs = await Database.get('favorites');
-                if(favs && favs.length > 0) {
-                    html += `
-                        <div class="flex items-center justify-between p-3 bg-zinc-900/30 rounded-xl border border-white/5 cursor-pointer" onclick="Queue.set(${JSON.stringify(favs).replace(/"/g, '&quot;')})">
-                             <div class="flex items-center gap-3">
-                                <div class="w-10 h-10 rounded-full bg-gradient-to-br from-green-900 to-black flex items-center justify-center">
-                                    <i data-lucide="heart" class="w-4 h-4 fill-green-500 text-green-500"></i>
-                                </div>
-                                <div>
-                                    <p class="text-xs font-bold text-white">Liked Songs</p>
-                                    <p class="text-[10px] text-zinc-500 uppercase">${favs.length} Songs</p>
-                                </div>
+                html += `
+                    <div class="flex items-center justify-between p-3 bg-zinc-900/30 rounded-xl border border-white/5 cursor-pointer" onclick="Queue.set(State.favorites)">
+                         <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-full bg-gradient-to-br from-green-900 to-black flex items-center justify-center">
+                                <i data-lucide="heart" class="w-4 h-4 fill-green-500 text-green-500"></i>
+                            </div>
+                            <div>
+                                <p class="text-xs font-bold text-white">Liked Songs</p>
+                                <p class="text-[10px] text-zinc-500 uppercase">${State.favorites.length} Songs</p>
                             </div>
                         </div>
-                    `;
-                }
+                    </div>`;
 
-                list.innerHTML = html || '<div class="text-center py-10 text-zinc-600 text-xs">No playlists created</div>';
+                list.innerHTML = html || '<div class="text-center py-10 text-zinc-600 text-xs">No content yet.</div>';
                 lucide.createIcons();
             },
 
@@ -1168,12 +1322,11 @@
             showQueue() {
                 const list = document.getElementById('queue-list');
                 list.innerHTML = '';
-                document.getElementById('queue-count').innerText = `(${State.queue.length})`;
+                document.getElementById('queue-info').innerText = `${State.queue.length} songs in queue`;
                 
                 State.queue.forEach((t, i) => {
                     const item = document.createElement('div');
                     item.className = 'queue-item relative rounded-xl overflow-hidden mb-2';
-                    // Using HTML data attributes for simple touch logic
                     item.dataset.index = i;
                     
                     item.innerHTML = `
@@ -1188,43 +1341,28 @@
                         </div>
                     `;
                     
-                    // Add Touch Swipe Logic
-                    let startX = 0;
-                    let currentX = 0;
+                    let startX = 0, currentX = 0;
                     const content = item.querySelector('.queue-content');
                     
-                    item.addEventListener('touchstart', e => {
-                        startX = e.touches[0].clientX;
-                    }, {passive: true});
-                    
+                    item.addEventListener('touchstart', e => { startX = e.touches[0].clientX; });
                     item.addEventListener('touchmove', e => {
                         currentX = e.touches[0].clientX;
                         const diff = startX - currentX;
-                        if (diff > 0 && diff < 100) {
-                            content.style.transform = `translateX(-${diff}px)`;
-                        }
-                    }, {passive: true});
-                    
-                    item.addEventListener('touchend', e => {
+                        if (diff > 0 && diff < 100) content.style.transform = `translateX(-${diff}px)`;
+                    });
+                    item.addEventListener('touchend', () => {
                         const diff = startX - currentX;
-                        if (diff > 80) {
-                            // Remove threshold met
-                            Queue.remove(i);
-                        } else {
-                            content.style.transform = `translateX(0)`;
-                        }
+                        if (diff > 80) Queue.remove(i);
+                        else content.style.transform = `translateX(0)`;
                     });
 
-                    // Click to play
-                    item.addEventListener('click', (e) => {
-                        // Prevent play if we just swiped (basic check)
+                    item.addEventListener('click', () => {
                         if(startX - currentX < 20) {
                             Queue.index = i;
                             AudioEngine.load(State.queue[i]);
-                            UI.renderQueue(); // refresh active state
+                            UI.renderQueue();
                         }
                     });
-
                     list.appendChild(item);
                 });
                 lucide.createIcons();
@@ -1244,27 +1382,20 @@
                 resize();
 
                 const draw = () => {
-                    if (!State.vizActive) {
-                        requestAnimationFrame(draw);
-                        return;
-                    }
-
                     ctx.clearRect(0, 0, width, height);
                     
-                    // Circular Visualizer Around Album Art
-                    if (State.isPlaying) {
+                    if (State.isPlaying && State.vizActive) {
                         const time = Date.now() / 1000;
-                        const bars = 60;
+                        const bars = 80;
                         const centerX = width / 2;
                         const centerY = height / 2;
-                        // Radius slightly larger than the album art (approx 160px radius for 320px art)
-                        const baseRadius = 180; 
+                        const baseRadius = 165; // Just outside the 320px album art (160px radius)
 
                         for (let i = 0; i < bars; i++) {
                             const angle = (i / bars) * Math.PI * 2;
-                            // Generate pseudo-frequency data using sine waves for smoothness since we can't use Web Audio API easily with CORS restricted streams
-                            const freq = Math.sin(time * 3 + i * 0.2) * 30 + Math.cos(time * 5 + i * 0.5) * 15;
-                            const h = 10 + Math.abs(freq); 
+                            // Procedural Audio Data Simulation
+                            const freq = Math.sin(time * 4 + i * 0.1) * 25 + Math.cos(time * 7 + i * 0.05) * 15;
+                            const h = 5 + Math.abs(freq) * (State.isPlaying ? 1.5 : 0); // Height reacts to play state
 
                             const x1 = centerX + Math.cos(angle) * baseRadius;
                             const y1 = centerY + Math.sin(angle) * baseRadius;
@@ -1274,8 +1405,11 @@
                             ctx.beginPath();
                             ctx.moveTo(x1, y1);
                             ctx.lineTo(x2, y2);
-                            ctx.strokeStyle = `rgba(255, 255, 255, ${0.2 + (h/80)})`;
-                            ctx.lineWidth = 4;
+                            
+                            // Dynamic Color
+                            const hue = (i / bars * 360 + time * 50) % 360;
+                            ctx.strokeStyle = `hsla(${hue}, 70%, 60%, ${0.4 + (h/80)})`;
+                            ctx.lineWidth = 3;
                             ctx.lineCap = 'round';
                             ctx.stroke();
                         }
@@ -1288,7 +1422,7 @@
             toggleViz() {
                 State.vizActive = !State.vizActive;
                 const dot = document.getElementById('viz-toggle-dot');
-                dot.className = State.vizActive ? 'absolute right-1 top-1 w-3 h-3 bg-black rounded-full transition-all' : 'absolute left-1 top-1 w-3 h-3 bg-white rounded-full transition-all';
+                // Handled via inline classes in HTML onclick for simplicity with Tailwind
             }
         };
 
@@ -1307,8 +1441,6 @@
             UI.init();
             LocalFiles.init();
             lucide.createIcons();
-            
-            // Initial View
             UI.toggleView('home');
         };
 
