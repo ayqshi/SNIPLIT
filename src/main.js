@@ -583,7 +583,7 @@
 
                 let html = '';
                 if (slide === 0) {
-                    html = `<div class="slide-enter space-y-4"><h1 class="text-6xl font-black text-transparent bg-clip-text bg-gradient-to-br from-white to-zinc-600">2025<br>WRAPPED</h1><p class="text-zinc-400 font-mono tracking-widest text-xs uppercase">Your Sonic Identity</p></div>`;
+                    html = `<div class="slide-enter space-y-4"><h1 class="text-6xl font-black text-transparent bg-clip-text bg-gradient-to-br from-white to-zinc-600">2025<br>WRAPPED</h1><p class="text-zinc-400 font-mono tracking-widest text-xs uppercase">Your Music Analysis</p></div>`;
                 } else if (slide === 1) {
                     html = `<div class="slide-enter space-y-2"><p class="text-zinc-500 uppercase text-xs font-bold tracking-widest">Total Airtime</p><h2 class="text-8xl font-black text-white tracking-tighter">${data.totalHours}<span class="text-2xl text-zinc-600 ml-2">HRS</span></h2></div>`;
                 } else if (slide === 2) {
@@ -1373,8 +1373,15 @@ Promise.all(queries.map(q => API.search(q)))
         }
 
         window.onload = UI.init.bind(UI);
-if (!navigator.standalone || !window.matchMedia('(display-mode: standalone)').matches) {
-    document.querySelector("#notification-bar").style.visibility = "visible";
-}
+        //very sloopy very tired. very google
+let isSmallScreen = window.matchMedia("only screen and (max-width: 768px)").matches;
 
+if (!navigator.standalone || !window.matchMedia('(display-mode: standalone)').matches) {
+   if(isSmallScreen){ document.querySelector("#notification-bar").style.visibility = "visible"} else {
+    document.querySelector("#notification-bar").remove();
+   }
+} else {
+    document.querySelector("#notification-bar").remove();
+}
+        
     
