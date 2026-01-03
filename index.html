@@ -11,7 +11,7 @@
     <meta name="apple-mobile-web-app-title" content="SNIPLIT">
     <meta name="application-name" content="SNIPLIT">
     <meta name="theme-color" content="#000000">
-    <meta name="description" content="Pro Audio Discovery Engine & Music Analytics">
+    <meta name="description" content="Audio Discovery Engine & Music Analytics">
     <meta name="format-detection" content="telephone=no">
     <meta name="mobile-web-app-capable" content="yes">
     <link rel="icon" href="src/SNIPLIT.png" type="image/x-icon">
@@ -32,325 +32,16 @@
         href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;900&family=JetBrains+Mono:wght@400;500&display=swap"
         rel="stylesheet">
 
-    <style>
-        :root {
-            --accent: #ffffff;
-            --subtext: #a1a1aa;
-            --bg: #000000;
-            --surface: #0a0a0a;
-            --border: rgba(255, 255, 255, 0.08);
-        }
-
-        body {
-            font-family: 'Outfit', sans-serif;
-            background-color: var(--bg);
-            color: var(--accent);
-            overflow: hidden;
-            user-select: none;
-            -webkit-tap-highlight-color: transparent;
-            touch-action: pan-y;
-        }
-
-        .font-mono {
-            font-family: 'JetBrains Mono', monospace;
-        }
-
-        h1,
-        h2,
-        h3 {
-            letter-spacing: -0.02em;
-        }
-
-        .no-scrollbar::-webkit-scrollbar {
-            display: none;
-        }
-
-        .glass {
-            background: rgba(10, 10, 10, 0.85);
-            backdrop-filter: blur(25px);
-            -webkit-backdrop-filter: blur(25px);
-            border-top: 1px solid rgba(255, 255, 255, 0.05);
-        }
-
-        .btn-active:active {
-            transform: scale(0.96);
-        }
-
-        .hover-lift:hover {
-            transform: translateY(-2px);
-            transition: transform 0.2s ease;
-        }
-
-        input[type=range] {
-            -webkit-appearance: none;
-            background: transparent;
-            cursor: pointer;
-        }
-
-        input[type=range]::-webkit-slider-runnable-track {
-            height: 4px;
-            background: #333;
-            border-radius: 2px;
-        }
-
-        input[type=range]::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            height: 16px;
-            width: 16px;
-            background: #fff;
-            border-radius: 50%;
-            margin-top: -6px;
-            box-shadow: 0 0 15px rgba(255, 255, 255, 0.5);
-        }
-
-        .is-playing #player-art {
-            animation: rotate 20s linear infinite;
-        }
-
-        @keyframes rotate {
-            from {
-                transform: rotate(0deg);
-            }
-
-            to {
-                transform: rotate(360deg);
-            }
-        }
-
-        /* --- Splash Screen --- */
-        #splash-screen {
-            position: fixed;
-            inset: 0;
-            background: #000;
-            z-index: 9999;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            transition: opacity 0.8s ease, visibility 0.8s;
-        }
-
-        .splash-loader {
-            width: 40px;
-            height: 40px;
-            border: 3px solid rgba(255, 255, 255, 0.1);
-            border-top-color: #fff;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin-top: 20px;
-        }
-
-        @keyframes spin {
-            to {
-                transform: rotate(360deg);
-            }
-        }
-
-        /* --- Visualizer --- */
-        #viz-canvas {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 100%;
-            height: 100%;
-            z-index: 1;
-            /* Behind Art */
-            opacity: 0.6;
-            pointer-events: none;
-        }
-
-        /* --- Lyrics (Revamped - Larger & Spacious) --- */
-        #lyrics-panel {
-            background: rgba(0, 0, 0, 0.95);
-            backdrop-filter: blur(40px);
-        }
-
-        .lyric-line {
-            font-size: 1.5rem;
-            line-height: 1.6;
-            color: #444;
-            transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-            cursor: pointer;
-            padding: 12px 0;
-            text-align: center;
-            opacity: 0.6;
-            transform-origin: center;
-        }
-
-        .lyric-line.active {
-            color: #fff;
-            font-size: 2.4rem;
-            font-weight: 800;
-            opacity: 1;
-            transform: scale(1.05);
-            text-shadow: 0 0 40px rgba(255, 255, 255, 0.3);
-            margin: 20px 0;
-        }
-
-        /* --- Queue Swipe --- */
-        .queue-item {
-            position: relative;
-            overflow: hidden;
-            touch-action: pan-y;
-        }
-
-        .swipe-bg {
-            position: absolute;
-            top: 0;
-            right: 0;
-            bottom: 0;
-            width: 100px;
-            background: #ef4444;
-            display: flex;
-            align-items: center;
-            justify-content: flex-end;
-            padding-right: 20px;
-            z-index: 0;
-        }
-
-        .queue-content {
-            position: relative;
-            z-index: 10;
-            background: #18181b;
-            transition: transform 0.1s linear;
-        }
-
-        /* --- Skeletons --- */
-        .skeleton {
-            background: linear-gradient(90deg, #18181b 25%, #27272a 50%, #18181b 75%);
-            background-size: 200% 100%;
-            animation: shimmer 1.5s infinite;
-            border-radius: 0.5rem;
-        }
-
-        @keyframes shimmer {
-            0% {
-                background-position: 200% 0;
-            }
-
-            100% {
-                background-position: -200% 0;
-            }
-        }
-
-        /* --- Animations --- */
-        .slide-enter {
-            animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-        }
-
-        @keyframes slideUp {
-            from {
-                opacity: 0;
-                transform: translateY(50px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .view-section {
-            transition: opacity 0.3s ease, transform 0.3s ease;
-        }
-
-        .view-section.hidden {
-            display: none;
-            opacity: 0;
-            transform: translateY(10px);
-        }
-
-        /* Onboarding Overlays */
-        #onboarding-layer {
-            position: fixed;
-            inset: 0;
-            z-index: 5000;
-            background: black;
-            overflow-y: auto;
-        }
-
-
-        /* Custom Modals */
-        .custom-modal-overlay {
-            position: fixed;
-            inset: 0;
-            z-index: 9999;
-            background: rgba(0, 0, 0, 0.6);
-            backdrop-filter: blur(4px);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.3s;
-        }
-
-        .custom-modal-overlay.active {
-            opacity: 1;
-            pointer-events: auto;
-        }
-
-        .custom-modal-box {
-            background: #18181b;
-            width: 85%;
-            max-width: 320px;
-            border-radius: 20px;
-            padding: 24px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
-            transform: scale(0.9);
-            transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
-        }
-
-        .custom-modal-overlay.active .custom-modal-box {
-            transform: scale(1);
-        }
-
-        .modal-btn {
-            width: 100%;
-            padding: 14px;
-            border-radius: 12px;
-            font-weight: 700;
-            font-size: 14px;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            transition: all 0.2s;
-            margin-top: 8px;
-            border: none;
-            cursor: pointer;
-        }
-
-        .modal-btn-primary {
-            background: #fff;
-            color: #000;
-        }
-
-        .modal-btn-primary:active {
-            transform: scale(0.98);
-        }
-
-        .modal-btn-secondary {
-            background: #27272a;
-            color: #fff;
-        }
-
-        .modal-btn-danger {
-            background: rgba(239, 68, 68, 0.1);
-            color: #ef4444;
-        }
-    </style>
+  <link href="src/app.css" rel="stylesheet">
 </head>
 
 <body class="flex items-center justify-center h-screen w-screen bg-black">
-
     <!-- Splash Screen -->
     <div id="splash-screen">
         <h1 class="text-5xl font-black tracking-tighter text-white mb-2">SNIPLIT</h1>
         <p class="text-[10px] font-mono text-zinc-500 uppercase tracking-[0.3em]">Find your music taste.</p>
         <div class="splash-loader"></div>
     </div>
-
     <!-- Onboarding Flow -->
     <div id="onboarding-layer" class="hidden flex flex-col p-8">
         <!-- Step 1: Terms -->
@@ -374,27 +65,25 @@
                 class="w-full py-4 bg-white text-black font-bold uppercase tracking-widest rounded-full hover:scale-[1.02] transition">I
                 Agree</button>
         </div>
-
-        <!-- Step 2: Survey -->
         <div id="ob-survey"
             class="hidden max-w-md mx-auto w-full flex flex-col h-full justify-center space-y-8 slide-enter">
             <div>
-                <h2 class="text-3xl font-black mb-2">Sonic Identity</h2>
+                <h2 class="text-3xl font-black mb-2">SNIPLIT Identity</h2>
                 <p class="text-zinc-500 text-sm">Let's calibrate your audio profile.</p>
             </div>
 
             <div class="space-y-4">
                 <div>
-                    <label class="text-xs font-bold uppercase text-zinc-500 ml-2">Codename</label>
+                    <label class="text-xs font-bold uppercase text-zinc-500 ml-2">username</label>
                     <input type="text" id="survey-name"
                         class="w-full bg-zinc-900 border border-zinc-800 p-4 rounded-2xl text-white font-bold outline-none focus:border-white transition"
                         placeholder="Enter your name">
                 </div>
 
                 <div>
-                    <label class="text-xs font-bold uppercase text-zinc-500 ml-2 mb-2 block">Vibe Calibration</label>
+                    <label class="text-xs font-bold uppercase text-zinc-500 ml-2 mb-2 block">Favorable genres</label>
                     <div class="grid grid-cols-2 gap-3" id="survey-genres">
-                        <!-- Filled by JS -->
+                       
                     </div>
                 </div>
             </div>
@@ -440,7 +129,14 @@
 
             <!-- Home View -->
             <section id="view-home" class="view-section space-y-8 pt-4 pb-10">
+<div id="notification-bar" class="flex items-center gap-3 bg-transparent-900/50  p-2.5 rounded-xl border border-white/5 hover:bg-white/10 transition cursor-pointer">
+                            <i data-lucide="bell" class="w-10 h-10 rounded-lg object-cover shadow-sm"></i>
+                            <div class="min-w-0 flex-1">
+                                <p id="notification_bar-title" class="text-[11px] font-bold truncate text-white">Download the mobile app.</p>
+                                <p id="notification_bar-sub" class="text-[9px] text-zinc-500 font-bold truncate uppercase">Add to Home Screen or download<a style="color: pink;" href="https://github.com/ayqshi/SNIPLIT" target="_blank">  -here-</a></p>
 
+                            </div>
+                        </div>
                 <!-- Jump Back In -->
                 <div>
                     <h2 class="text-xs font-bold text-zinc-600 uppercase tracking-widest mb-4 flex items-center gap-2">
@@ -890,7 +586,9 @@
         class="fixed top-6 left-1/2 -translate-x-1/2 bg-white text-black px-6 py-3 rounded-full text-xs font-bold uppercase tracking-widest shadow-2xl z-[9999] opacity-0 pointer-events-none transition-opacity duration-300">
         Notification
     </div>
-
+<div id="page-error-cover">
+Looks like your browser is unsupported. <br> Try launching the app with a more up to date source.
+</div>
     <script src="src\main.js"></script>
 </body>
 
