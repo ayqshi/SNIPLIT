@@ -1,10 +1,4 @@
-
-        /**
-         * SNIPLIT Pro - v7.2.0
-         * Single File Architecture
-         */
-
-        const Log = {
+  const Log = {
             info: (mod, msg) => console.log(`%c[${mod}]`, 'color: #3b82f6; font-weight: bold; background: #eff6ff; padding: 2px 6px; border-radius: 4px;', msg),
             warn: (mod, msg) => console.log(`%c[${mod}]`, 'color: #f59e0b; font-weight: bold; background: #fffbeb; padding: 2px 6px; border-radius: 4px;', msg),
             err: (mod, msg) => console.log(`%c[${mod}]`, 'color: #ef4444; font-weight: bold; background: #fef2f2; padding: 2px 6px; border-radius: 4px;', msg),
@@ -150,6 +144,7 @@
                 
                 UI.updatePlayerUI();
                 LyricsEngine.fetch(track);
+                this.updateMediaSession();
                 Log.info('Audio', `Loaded: ${track.trackName}`);
             },
 
@@ -176,6 +171,7 @@
                 document.getElementById('mini-progress').style.width = `${pct || 0}%`;
                 document.getElementById('time-cur').innerText = this.formatTime(this.el.currentTime);
                 document.getElementById('time-total').innerText = this.formatTime(this.el.duration);
+                this.updateMediaSession();
             },
     
             formatTime(s) {
@@ -372,6 +368,7 @@
                 if (State.loop === 'one') {
                     AudioEngine.el.currentTime = 0;
                     AudioEngine.el.play();
+                    AudioEngine.updateMediaSession();
                     return;
                 }
                 
@@ -391,9 +388,10 @@
                 this.index--;
                 if (this.index < 0) this.index = State.queue.length - 1;
                 AudioEngine.load(State.queue[this.index]);
+                AudioEngine.updateMediaSession();
             },
 
-            onTrackEnd() { this.next(); },
+            onTrackEnd() { this.next(); AudioEngine.updateMediaSession();},
 
             toggleLoop() {
                 const modes = ['none', 'one', 'all'];
@@ -532,7 +530,7 @@
                         trackName: f.name.replace(/\.[^/.]+$/, ""),
                         artistName: "Local Import",
                         collectionName: f.webkitRelativePath.split('/')[0] || "Imported",
-                        artworkUrl100: "https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?w=300&h=300&fit=crop",
+                        artworkUrl100: "src/SNIPLIT.png",
                         previewUrl: URL.createObjectURL(f),
                         isLocal: true
                     }));
@@ -751,42 +749,126 @@
                         </div>`;
                 });
                 if(uniqueHistory.length === 0) recentsGrid.innerHTML = '<div class="col-span-2 py-4 text-center text-zinc-700 text-[10px] font-mono border border-dashed border-zinc-800 rounded-xl">Start listening to build history</div>';
-
-                // Recommendations
-                const forYouGrid = document.getElementById('for-you-grid');
-                const discGrid = document.getElementById('recs-grid');
-                
                 // Fallback queries
-                const queries = State.genres.size > 0 ? Array.from(State.genres).slice(0,2) : ['Hits 2025'];
-                
-                Promise.all(queries.map(q => API.search(q))).then(results => {
-                    const combined = results.flat().sort(() => 0.5 - Math.random());
-                    
-                    forYouGrid.innerHTML = '';
-                    combined.slice(0, 8).forEach(t => {
-                        forYouGrid.innerHTML += `
-                            <div class="flex-shrink-0 w-32 space-y-2 cursor-pointer group" onclick="Queue.set([${this.esc(t)}])">
-                                <div class="relative overflow-hidden rounded-xl">
-                                    <img src="${t.artworkUrl100.replace('100x100', '400x400')}" class="w-32 h-32 object-cover bg-zinc-900 border border-white/5 group-hover:scale-105 transition duration-500">
-                                </div>
-                                <div class="px-1">
-                                    <p class="text-[11px] font-bold truncate text-white">${t.trackName}</p>
-                                    <p class="text-[9px] text-zinc-500 font-bold truncate uppercase">${t.artistName}</p>
-                                </div>
-                            </div>`;
-                    });
+              // --- SMART PERSONALIZED DISCOVERY ENGINE v2 ---
+const forYouGrid = document.getElementById('for-you-grid');
+const discGrid = document.getElementById('recs-grid');
 
-                    discGrid.innerHTML = '';
-                    combined.slice(8, 12).forEach(t => {
-                        discGrid.innerHTML += `
-                            <div class="space-y-2 cursor-pointer group" onclick="Queue.set([${this.esc(t)}])">
-                                <div class="relative overflow-hidden rounded-xl">
-                                    <img src="${t.artworkUrl100.replace('100x100', '400x400')}" class="w-full aspect-square object-cover border border-white/5 group-hover:scale-105 transition duration-500">
-                                </div>
-                                <p class="text-xs font-bold truncate text-zinc-300 group-hover:text-white">${t.trackName}</p>
-                            </div>`;
-                    });
-                });
+// 1. Extract high-confidence seeds
+const trustedArtists = new Set();
+const recentAlbumIds = new Set();
+
+// Favor explicit signals
+State.favorites.forEach(t => trustedArtists.add(t.artistName));
+State.followedArtists.forEach(a => trustedArtists.add(a.name));
+
+// Add from history ONLY if fully played (approx: duration ≥ 85% of track)
+const fullListens = State.history.filter(t => {
+  // Estimate: if we have trackTimeMillis, assume full listen if played >85%
+  // (In a real app, you'd store actual play % — but we simulate)
+  const durationMs = t.trackTimeMillis || 180000;
+  // For now: treat last 20 as "likely intentional", older as noise
+  return State.history.indexOf(t) < 20;
+});
+
+// Block albums from last 5 tracks
+State.history.slice(0, 5).forEach(t => {
+  if (t.collectionId) recentAlbumIds.add(t.collectionId);
+});
+
+// Add top artists from full listens
+if (fullListens.length > 0) {
+  const artistFreq = {};
+  fullListens.forEach(t => {
+    artistFreq[t.artistName] = (artistFreq[t.artistName] || 0) + 1;
+  });
+  const topFromHistory = Object.entries(artistFreq)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 2)
+    .map(([name]) => name);
+  topFromHistory.forEach(a => trustedArtists.add(a));
+}
+
+// 2. Build queries
+let queries = [];
+
+if (trustedArtists.size > 0) {
+  const artistList = Array.from(trustedArtists).slice(0, 4);
+  queries.push(...artistList.flatMap(a => [`${a} radio`, `${a} similar artists`]));
+} else if (State.genres.size > 0) {
+  queries = Array.from(State.genres).slice(0, 2).map(g => `${g} 2026 emerging`);
+} else {
+  queries = ['Hits 2026'];
+}
+
+// 3. Fetch results
+Promise.all(queries.map(q => API.search(q)))
+  .then(results => results.flat())
+  .then(rawTracks => {
+    // 4. FILTER & DEDUPE
+    const seenAlbums = new Set(recentAlbumIds); // Block recent albums
+    const seenArtists = {};
+    const filtered = [];
+
+    for (const t of rawTracks) {
+      // Skip if from blocked album
+      if (t.collectionId && seenAlbums.has(t.collectionId)) continue;
+      // Skip if album already used
+      if (t.collectionId) seenAlbums.add(t.collectionId);
+      // Cap per-artist
+      seenArtists[t.artistName] = (seenArtists[t.artistName] || 0) + 1;
+      if (seenArtists[t.artistName] > 2) continue;
+      // Skip if already in history
+      if (State.history.some(h => h.trackId === t.trackId)) continue;
+      // Skip if low-quality result
+      if (!t.previewUrl || !t.artworkUrl100) continue;
+      
+      filtered.push(t);
+    }
+
+    // 5. RANK by affinity
+    const followedNames = new Set(State.followedArtists.map(a => a.name));
+    const favoriteArtistNames = new Set(State.favorites.map(f => f.artistName));
+
+    const scored = filtered.map(t => {
+      let score = 0;
+      if (followedNames.has(t.artistName)) score += 50;
+      if (favoriteArtistNames.has(t.artistName)) score += 40;
+      if (trustedArtists.has(t.artistName)) score += 30;
+      // Bonus for new albums
+      if (!State.history.some(h => h.collectionId === t.collectionId)) score += 10;
+      return { ...t, _score: score };
+    });
+
+    scored.sort((a, b) => b._score - a._score || Math.random() - 0.5);
+    const finalTracks = scored.slice(0, 20).map(({ _score, ...rest }) => rest);
+
+    // 6. RENDER
+    forYouGrid.innerHTML = '';
+    finalTracks.slice(0, 8).forEach(t => {
+      forYouGrid.innerHTML += `
+        <div class="flex-shrink-0 w-32 space-y-2 cursor-pointer group" onclick="Queue.set([${this.esc(t)}])">
+          <div class="relative overflow-hidden rounded-xl">
+            <img src="${t.artworkUrl100.replace('100x100', '400x400')}" class="w-32 h-32 object-cover bg-zinc-900 border border-white/5 group-hover:scale-105 transition duration-500">
+          </div>
+          <div class="px-1">
+            <p class="text-[11px] font-bold truncate text-white">${t.trackName}</p>
+            <p class="text-[9px] text-zinc-500 font-bold truncate uppercase">${t.artistName}</p>
+          </div>
+        </div>`;
+    });
+
+    discGrid.innerHTML = '';
+    finalTracks.slice(8, 12).forEach(t => {
+      discGrid.innerHTML += `
+        <div class="space-y-2 cursor-pointer group" onclick="Queue.set([${this.esc(t)}])">
+          <div class="relative overflow-hidden rounded-xl">
+            <img src="${t.artworkUrl100.replace('100x100', '400x400')}" class="w-full aspect-square object-cover border border-white/5 group-hover:scale-105 transition duration-500">
+          </div>
+          <p class="text-xs font-bold truncate text-zinc-300 group-hover:text-white">${t.trackName}</p>
+        </div>`;
+    });
+  });
             },
 
             renderSearchResults(results) {
@@ -962,7 +1044,20 @@
                                 <p class="text-[10px] text-zinc-500 uppercase font-bold tracking-wider">${State.favorites.length} Tracks</p>
                             </div>
                         </div>
-                    </div>`;
+                    </div>
+
+                     <div class="flex items-center justify-between p-4 bg-zinc-900/30 rounded-2xl border border-white/5 cursor-pointer hover:bg-zinc-900 transition group mb-3" onclick="Queue.set(State.favorites)">
+                         <div class="flex items-center gap-4">
+                            <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-gray-900 to-white flex items-center justify-center border border-indigo-500/20 shadow-lg group-hover:scale-105 transition">
+                                <i data-lucide="mic-2" class="w-5 h-5 fill-black-400 text-black-400"></i>
+                            </div>
+                            <div>
+                                <p class="text-sm font-bold text-white">Following</p>
+                                <p class="text-[10px] text-zinc-500 uppercase font-bold tracking-wider">${State.followedArtists.length}</p>
+                            </div>
+                        </div>
+                    </div>
+                    `;
                 
                 State.playlists.forEach(pl => {
                     html += `
@@ -1278,5 +1373,8 @@
         }
 
         window.onload = UI.init.bind(UI);
+if (!navigator.standalone || !window.matchMedia('(display-mode: standalone)').matches) {
+    document.querySelector("#notification-bar").style.visibility = "visible";
+}
 
     
