@@ -188,6 +188,35 @@
             position: fixed; inset: 0; z-index: 5000; background: black;
             overflow-y: auto;
         }
+
+
+           /* Custom Modals */
+        .custom-modal-overlay {
+            position: fixed; inset: 0; z-index: 9999;
+            background: rgba(0,0,0,0.6); backdrop-filter: blur(4px);
+            display: flex; align-items: center; justify-content: center;
+            opacity: 0; pointer-events: none; transition: opacity 0.3s;
+        }
+        .custom-modal-overlay.active { opacity: 1; pointer-events: auto; }
+        
+        .custom-modal-box {
+            background: #18181b; width: 85%; max-width: 320px;
+            border-radius: 20px; padding: 24px;
+            border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+            transform: scale(0.9); transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .custom-modal-overlay.active .custom-modal-box { transform: scale(1); }
+        
+        .modal-btn {
+            width: 100%; padding: 14px; border-radius: 12px;
+            font-weight: 700; font-size: 14px; text-transform: uppercase; letter-spacing: 0.05em;
+            transition: all 0.2s; margin-top: 8px; border: none; cursor: pointer;
+        }
+        .modal-btn-primary { background: #fff; color: #000; }
+        .modal-btn-primary:active { transform: scale(0.98); }
+        .modal-btn-secondary { background: #27272a; color: #fff; }
+        .modal-btn-danger { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
     </style>
 </head>
 <body class="flex items-center justify-center h-screen w-screen bg-black">
@@ -330,7 +359,7 @@
                     <div id="search-history-chips" class="flex flex-wrap gap-2"></div>
                 </div>
 
-                <div id="search-results" class="space-y-2 min-h-[200px]"></div>
+                <div id="search-results" class="space-y-2 min-h-[200px]">Search for specific content.</div>
             </section>
 
             <!-- Library View -->
@@ -388,7 +417,7 @@
                 <i data-lucide="search" class="w-5 h-5 group-[.active]:text-white transition-colors"></i>
                 <span class="text-[9px] font-bold uppercase tracking-widest group-[.active]:text-white transition-colors">Find</span>
             </button>
-            <button onclick="UI.toggleView('library')" class="nav-btn flex flex-col items-center gap-1.5 text-zinc-600 group w-16 transition-colors" data-view="library">
+            <button onclick="UI.toggleView('library');UI.renderLibrary();" class="nav-btn flex flex-col items-center gap-1.5 text-zinc-600 group w-16 transition-colors" data-view="library">
                 <i data-lucide="library" class="w-5 h-5 group-[.active]:text-white transition-colors"></i>
                 <span class="text-[9px] font-bold uppercase tracking-widest group-[.active]:text-white transition-colors">Data</span>
             </button>
@@ -582,7 +611,36 @@
         <input type="file" id="local-file-input" class="hidden" accept="audio/*" multiple>
         <input type="file" id="local-folder-input" class="hidden" webkitdirectory directory multiple>
     </div>
+   <!-- Custom Modals -->
+    <div id="ui-alert" class="custom-modal-overlay">
+        <div class="custom-modal-box text-center">
+            <h3 id="alert-title" class="text-xl font-bold mb-2">Alert</h3>
+            <p id="alert-msg" class="text-zinc-400 text-sm mb-6">Message goes here.</p>
+            <button onclick="UI.closeAlert()" class="modal-btn modal-btn-primary">OK</button>
+        </div>
+    </div>
+    
+    <div id="ui-confirm" class="custom-modal-overlay">
+        <div class="custom-modal-box text-center">
+            <h3 id="confirm-title" class="text-xl font-bold mb-2">Confirm</h3>
+            <p id="confirm-msg" class="text-zinc-400 text-sm mb-6">Are you sure?</p>
+            <div class="flex gap-3">
+                <button onclick="UI.closeConfirm()" class="modal-btn modal-btn-secondary">Cancel</button>
+                <button id="confirm-yes-btn" class="modal-btn modal-btn-danger">Confirm</button>
+            </div>
+        </div>
+    </div>
 
+    <div id="ui-prompt" class="custom-modal-overlay">
+        <div class="custom-modal-box">
+            <h3 id="prompt-title" class="text-xl font-bold mb-4">Input</h3>
+            <input type="text" id="prompt-input" class="w-full bg-black border border-zinc-700 rounded-xl p-3 text-white text-sm outline-none focus:border-white mb-6" placeholder="Type here...">
+            <div class="flex gap-3">
+                <button onclick="UI.closePrompt()" class="modal-btn modal-btn-secondary">Cancel</button>
+                <button id="prompt-yes-btn" class="modal-btn modal-btn-primary">Submit</button>
+            </div>
+        </div>
+    </div>
     <!-- Toast Notification -->
     <div id="toast" class="fixed top-6 left-1/2 -translate-x-1/2 bg-white text-black px-6 py-3 rounded-full text-xs font-bold uppercase tracking-widest shadow-2xl z-[9999] opacity-0 pointer-events-none transition-opacity duration-300">
         Notification
@@ -766,7 +824,7 @@
                 document.getElementById('time-cur').innerText = this.formatTime(this.el.currentTime);
                 document.getElementById('time-total').innerText = this.formatTime(this.el.duration);
             },
-
+    
             formatTime(s) {
                 if(!s || isNaN(s)) return "0:00";
                 const m = Math.floor(s/60);
@@ -789,6 +847,7 @@
                 }
             }
         };
+
 
         const Onboarding = {
             async check() {
@@ -1062,21 +1121,20 @@
                 UI.updatePlayerUI();
             },
             
-            async createPlaylist() {
-                const name = prompt("Playlist Name:");
+              createPlaylist(name) {
                 if(!name) return;
-                
                 const newPl = {
                     id: 'pl-' + Date.now(),
                     name: name,
                     tracks: [],
-                    created: Date.now()
+                    image: null
                 };
                 State.playlists.push(newPl);
-                await Database.savePlaylists(State.playlists);
+                Database.savePlaylists(State.playlists);
                 UI.renderLibrary();
-                UI.toast(`Created "${name}"`);
+                UI.toast(`Created ${name}`);
             },
+        
 
             async addToPlaylist(playlistId) {
                 if(!State.currentTrack) return;
@@ -1775,7 +1833,9 @@
                 document.getElementById('modal-add-playlist').classList.remove('hidden');
             },
 
-            showCreatePlaylist() { Library.createPlaylist(); },
+            showCreatePlaylist() { 
+                  UI.triggerPrompt('Create Playlist', 'Enter playlist name', (name) => Library.createPlaylist(name));
+             },
 
             toggleSetting(key, el) {
                 State.preferences[key] = !State.preferences[key];
@@ -1811,6 +1871,40 @@
                     location.reload();
                  }
             },
+             // Custom Modals
+            triggerAlert(title, msg) {
+                document.getElementById('alert-title').innerText = title;
+                document.getElementById('alert-msg').innerText = msg;
+                document.getElementById('ui-alert').classList.add('active');
+            },
+            closeAlert() { document.getElementById('ui-alert').classList.remove('active'); },
+            
+            triggerConfirm(title, msg, onYes) {
+                document.getElementById('confirm-title').innerText = title;
+                document.getElementById('confirm-msg').innerText = msg;
+                const btn = document.getElementById('confirm-yes-btn');
+                // Clone to remove old listeners
+                const newBtn = btn.cloneNode(true);
+                btn.parentNode.replaceChild(newBtn, btn);
+                newBtn.addEventListener('click', () => { onYes(); UI.closeConfirm(); });
+                document.getElementById('ui-confirm').classList.add('active');
+            },
+            closeConfirm() { document.getElementById('ui-confirm').classList.remove('active'); },
+
+            triggerPrompt(title, placeholder, onSubmit) {
+                document.getElementById('prompt-title').innerText = title;
+                const inp = document.getElementById('prompt-input');
+                inp.value = '';
+                inp.placeholder = placeholder;
+                const btn = document.getElementById('prompt-yes-btn');
+                const newBtn = btn.cloneNode(true);
+                btn.parentNode.replaceChild(newBtn, btn);
+                newBtn.addEventListener('click', () => { onSubmit(inp.value); UI.closePrompt(); });
+                document.getElementById('ui-prompt').classList.add('active');
+                setTimeout(() => inp.focus(), 100);
+            },
+            closePrompt() { document.getElementById('ui-prompt').classList.remove('active'); },
+        
 
             toast(msg) {
                 const t = document.getElementById('toast');
