@@ -1233,7 +1233,6 @@
                 document.getElementById('main-search').addEventListener('focus', () => {
                     if(State.preferences.historyEnabled && State.searchHistory.length > 0) {
                         document.getElementById('search-history-panel').classList.remove('hidden');
-                        document.getElementById('search-results').classList.add('hidden');
                     }
                 });
             },
