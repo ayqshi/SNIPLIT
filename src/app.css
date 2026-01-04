@@ -1,4 +1,5 @@
 
+        /* --- CORE THEME VARIABLES (Advanced & Considerate) --- */
         :root {
             /* Palette: Deep Space */
             --bg-app: #000000;
@@ -39,7 +40,10 @@
             --ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
             --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
         }
-
+html, body {
+  user-select: none;
+  overflow: hidden;
+}
         /* --- LIGHT MODE OVERRIDES --- */
         body.light-mode {
             --bg-app: #ffffff;
@@ -167,9 +171,7 @@
         /* Lyrics */
         #lyrics-panel {
             background: var(--bg-app);
-            mask-image: linear-gradient(to bottom, transparent 0%, black 20%, black 80%, transparent 100%);
-            -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 20%, black 80%, transparent 100%);
-        }
+         }
         .lyric-line {
             transition: all 0.4s var(--ease-spring);
             opacity: 0.5; transform: scale(0.95);
@@ -180,11 +182,17 @@
             font-weight: 800;
             text-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
         }
-
-        /* Visualizer */
-        #viz-canvas {
-            opacity: 0.6; mix-blend-mode: screen; pointer-events: none;
-        }
+#viz-canvas {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 100%; /* Keeps it full size of the container */
+    height: 100%;
+    z-index: 1;
+    pointer-events: none;
+    opacity: 0.4; 
+}
 
         /* Modals */
         .modal-overlay {
@@ -205,7 +213,7 @@
 
         /* Queue Animation */
         #view-queue {
-            transition: transform 0.5s var(--ease-spring);
+            transition: transform 0.8s var(--ease-spring);
             box-shadow: 0 -10px 40px rgba(0,0,0,0.5);
         }
         .queue-hidden { transform: translateY(110%); }
