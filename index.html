@@ -3,7 +3,8 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -15,9 +16,11 @@
     <meta name="mobile-web-app-capable" content="yes">
     <link rel="icon" href="src/SNIPLIT.png" type="image/x-icon">
     <link rel="icon" href="src/SNIPLIT.png" type="image/png" sizes="32x32">
+    <link rel="icon" href="src/SNIPLIT.png" type="image/png" sizes="16x16">
+    <link rel="icon" href="src/SNIPLIT.png" type="image/svg+xml">
     <link rel="apple-touch-icon" sizes="180x180" href="src/SNIPLIT.png">
 
-    <!-- PWA Manifest -->
+    <!-- PWA Manifest with custom Base64 Icon -->
     <link rel="manifest" href="index.json">
 
     <title>SNIPLIT</title>
@@ -25,308 +28,190 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap"
+        rel="stylesheet">
+    <link href="src/app.css" rel="stylesheet">
 
-    <style>
-        :root {
-            --accent: #ffffff;
-            --subtext: #a1a1aa;
-            --bg: #000000;
-            --surface: #0a0a0a;
-            --border: rgba(255, 255, 255, 0.08);
-            --glass: rgba(10, 10, 10, 0.85);
-        }
-
-        /* Light Mode Overrides */
-        body.light-mode {
-            --bg: #ffffff;
-            --surface: #f4f4f5;
-            --border: rgba(0, 0, 0, 0.08);
-            --glass: rgba(255, 255, 255, 0.85);
-        }
-        body.light-mode .text-white { color: #000000; }
-        body.light-mode .text-zinc-900 { color: #18181b; }
-        body.light-mode .text-zinc-500 { color: #71717a; }
-        body.light-mode .text-zinc-400 { color: #a1a1aa; }
-        body.light-mode .bg-black { background-color: #ffffff; }
-        body.light-mode .bg-zinc-900 { background-color: #e4e4e7; border-color: rgba(0,0,0,0.1); }
-        body.light-mode .bg-zinc-800 { background-color: #d4d4d8; }
-        body.light-mode .border-white\/5 { border-color: rgba(0,0,0,0.05); }
-        body.light-mode #full-player { background: white; }
-        body.light-mode #player-title, body.light-mode #mini-title { color: black; }
-        body.light-mode .custom-modal-box { background: #ffffff; border: 1px solid #e5e5e5; color: black; }
-        body.light-mode .modal-btn-secondary { background: #f4f4f5; color: black; }
-        body.light-mode #lyrics-panel { background: rgba(255,255,255,0.95); }
-        body.light-mode .lyric-line { color: #aaa; }
-        body.light-mode .lyric-line.active { color: black; }
-
-        html, body {
-            overscroll-behavior: none;
-            user-select: none;
-            -webkit-tap-highlight-color: transparent;
-        }
-
-        body {
-            font-family: 'Outfit', sans-serif;
-            background-color: var(--bg);
-            color: var(--accent);
-            overflow: hidden;
-            transition: background-color 0.3s ease;
-        }
-
-        .font-mono { font-family: 'JetBrains Mono', monospace; }
-
-        /* Utilities */
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .glass {
-            background: var(--glass);
-            backdrop-filter: blur(25px);
-            -webkit-backdrop-filter: blur(25px);
-            border-top: 1px solid var(--border);
-        }
-        
-        /* Animations */
-        .slide-up { animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
-        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-
-        .fade-in { animation: fadeIn 0.3s ease forwards; }
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-
-        .skeleton {
-            background: linear-gradient(90deg, #18181b 25%, #27272a 50%, #18181b 75%);
-            background-size: 200% 100%;
-            animation: shimmer 1.5s infinite;
-            border-radius: 0.5rem;
-        }
-        @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
-
-        /* Input Range */
-        input[type=range] {
-            -webkit-appearance: none; background: transparent; cursor: pointer;
-        }
-        input[type=range]::-webkit-slider-runnable-track {
-            height: 4px; background: #333; border-radius: 2px;
-        }
-        input[type=range]::-webkit-slider-thumb {
-            -webkit-appearance: none; height: 16px; width: 16px; background: #fff; border-radius: 50%; margin-top: -6px;
-        }
-
-        /* Modals */
-        .custom-modal-overlay {
-            position: fixed; inset: 0; z-index: 9999; background: rgba(0,0,0,0.6);
-            backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center;
-            opacity: 0; pointer-events: none; transition: opacity 0.3s;
-        }
-        .custom-modal-overlay.active { opacity: 1; pointer-events: auto; }
-        .custom-modal-box {
-            background: #18181b; width: 90%; max-width: 340px; border-radius: 20px; padding: 24px;
-            border: 1px solid var(--border); box-shadow: 0 20px 50px rgba(0,0,0,0.5);
-            transform: scale(0.9); transition: transform 0.2s;
-        }
-        .custom-modal-overlay.active .custom-modal-box { transform: scale(1); }
-
-        /* Browser Support Cover */
-        #page-error-cover {
-            position: fixed; inset: 0; background: var(--bg); z-index: 999999;
-            display: none; flex-direction: column; align-items: center; justify-content: center;
-            text-align: center; padding: 20px;
-        }
-        @supports not (display: grid) { #page-error-cover { display: flex; } }
-
-        /* Lyrics */
-        #lyrics-panel {
-            position: absolute; inset: 0; background: rgba(0,0,0,0.95); backdrop-filter: blur(40px);
-            z-index: 20; padding: 100px 20px; overflow-y:; display: none;
-            flex-direction: column; align-items: center;
-        }
-        .lyric-line { font-size: 1.5rem; line-height: 1.6; color: #444; margin: 12px 0; transition: all 0.3s; text-align: center; cursor: pointer; }
-        .lyric-line.active { color: #fff; font-size: 2rem; font-weight: 800; text-shadow: 0 0 20px rgba(255,255,255,0.3); }
-
-        /* Visualizer */
-        #viz-canvas { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 100%; height: 100%; z-index: 1; pointer-events: none; opacity: 0.5; }
-
-        /* Album Art Rotate */
-        .is-playing #player-art { animation: rotate 20s linear infinite; }
-        @keyframes rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-
-        /* Splash */
-        #splash-screen {
-            position: fixed; inset: 0; background: #000; z-index: 10000;
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            transition: opacity 0.8s ease, visibility 0.8s;
-        }
-        .splash-loader {
-            width: 40px; height: 40px; border: 3px solid rgba(255,255,255,0.1);
-            border-top-color: #fff; border-radius: 50%; animation: spin 1s linear infinite;
-        }
-        @keyframes spin { to { transform: rotate(360deg); } }
-    </style>
 </head>
 
-<body class="flex items-center justify-center h-screen w-screen bg-black">
-    
-    <!-- Browser Check Cover -->
-    <div id="page-error-cover">
-        <h2 class="text-2xl font-bold mb-2">Browser Unsupported</h2>
-        <p class="text-zinc-400">Please use a modern browser (Chrome, Safari, Firefox) to experience SNIPLIT.</p>
-    </div>
+<body>
 
-    <!-- Splash Screen -->
+    <!-- === SPLASH SCREEN === -->
     <div id="splash-screen">
-        <h1 class="text-5xl font-black tracking-tighter text-white mb-2">SNIPLIT</h1>
-        <p class="text-[10px] font-mono text-zinc-500 uppercase tracking-[0.3em]">Find your music taste.</p>
-        <div class="splash-loader mt-6"></div>
-    </div>
-
-    <!-- Onboarding Layer -->
-    <div id="onboarding-layer" class="hidden flex flex-col p-8 absolute inset-0 bg-black z-[5000]">
-        <div id="ob-terms" class="max-w-md mx-auto w-full flex flex-col h-full">
-            <h2 class="text-2xl font-bold mb-6">User Agreement</h2>
-            <div class="flex-1 overflow-y-auto border border-zinc-800 rounded-xl p-4 text-xs text-zinc-400 space-y-4 mb-6 bg-zinc-900/50 font-mono leading-relaxed">
-                <p><strong>SNIPLIT User Agreement</strong></p>
-                <p>Welcome to SNIPLIT. By accessing this app, you agree to our terms. We use public APIs (iTunes) to stream music previews and fetch metadata. We do not host files.</p>
-                <p>We collect local usage data (play count, likes) to power our "Wrapped" analytics. This data stays on your device.</p>
-                <p>You must be 13+ years old.</p>
-            </div>
-            <button onclick="Onboarding.agreeTerms()" class="w-full py-4 bg-white text-black font-bold uppercase tracking-widest rounded-full hover:scale-[1.02] transition">I Agree</button>
-        </div>
-        
-        <div id="ob-survey" class="hidden max-w-md mx-auto w-full flex flex-col h-full justify-center space-y-8 slide-enter">
-            <div>
-                <h2 class="text-3xl font-black mb-2">Identity</h2>
-                <p class="text-zinc-500 text-sm">Let's calibrate your audio profile.</p>
-            </div>
-            <div class="space-y-4">
-                <div>
-                    <label class="text-xs font-bold uppercase text-zinc-500 ml-2">username</label>
-                    <input type="text" id="survey-name" class="w-full bg-zinc-900 border border-zinc-800 p-4 rounded-2xl text-white font-bold outline-none focus:border-white transition" placeholder="Enter your name">
-                </div>
-                <div>
-                    <label class="text-xs font-bold uppercase text-zinc-500 ml-2 mb-2 block">Favorable genres</label>
-                    <select id="ob-genre-select" class="w-full bg-zinc-800 text-white p-3 rounded-xl border border-zinc-700 outline-none appearance-none">
-                        <option value="Pop">Pop</option>
-                        <option value="Rock">Rock</option>
-                        <option value="Hip-Hop">Hip-Hop</option>
-                        <option value="Electronic">Electronic</option>
-                        <option value="Alternative">Alternative</option>
-                        <option value="R&B">R&B</option>
-                        <option value="Indie">Indie</option>
-                    </select>
-                </div>
-            </div>
-            <button onclick="Onboarding.finish();location.reload();" class="w-full py-4 bg-white text-black font-bold uppercase tracking-widest rounded-full mt-8 hover:scale-[1.02] transition">Initialize</button>
+        <h1 class="text-6xl font-black tracking-tighter mb-2" style="color: var(--text-primary);">SNIPLIT</h1>
+        <p class="text-xs font-mono uppercase tracking-[0.3em] mb-8" style="color: var(--text-tertiary);">Audio
+            Intelligence</p>
+        <div
+            class="w-10 h-10 border-2 border-[var(--bg-elevated)] border-t-[var(--text-primary)] rounded-full animate-spin">
         </div>
     </div>
 
-    <!-- Main App Container -->
-    <div id="app-container" class="relative w-full h-full max-w-[480px] max-h-[950px] bg-black md:border-[8px] md:border-[#1a1a1a] md:rounded-[3rem] overflow-hidden flex flex-col shadow-[0_0_100px_rgba(0,0,0,1)]">
-        
-        <!-- Status Bar -->
-        <div class="h-10 w-full flex items-center justify-between px-8 text-[12px] font-semibold opacity-0 z-50 pointer-events-none absolute top-0 bg-gradient-to-b from-black/80 to-transparent">
+    <!-- === ONBOARDING === -->
+    <div id="onboarding-layer"
+        class="hidden fixed inset-0 bg-[var(--bg-app)] z-[5000] flex flex-col p-8 overflow-y-auto">
+        <div id="ob-terms" class="max-w-md mx-auto w-full flex flex-col h-full justify-center space-y-6">
+            <h2 class="text-3xl font-black tracking-tight">Welcome</h2>
+            <p class="text-sm leading-relaxed" style="color: var(--text-secondary);">
+                SNIPLIT uses advanced algorithms to curate your audio experience. We store your preferences locally.
+                By continuing, you agree to our simulated Terms of Service.
+            </p>
+            <div class="bg-[var(--bg-surface)] p-4 rounded-xl border border-[var(--border-subtle)]">
+                <label class="text-xs font-bold uppercase mb-2 block"
+                    style="color: var(--text-tertiary);">Username</label>
+                <input type="text" id="survey-name"
+                    class="w-full bg-[var(--bg-app)] border border-[var(--border-default)] rounded-xl p-4 text-white font-bold outline-none focus:border-[var(--accent-secondary)] transition"
+                    placeholder="Enter your alias">
+                <div>
+                    <div class="mt-4">
+                        <label class="block text-xs font-bold text-zinc-500 uppercase mb-2">Select Favorite
+                            Genre</label>
+                        <select id="ob-genre-select"
+                            class="w-full bg-zinc-800 text-white p-3 rounded-xl border border-zinc-700 outline-none appearance-none">
+                            <option value="Pop">Pop</option>
+                            <option value="Rock">Rock</option>
+                            <option value="Hip-Hop">Hip-Hop</option>
+                            <option value="Electronic">Electronic</option>
+                            <option value="Alternative">Alternative</option>
+                            <option value="R&B">R&B</option>
+                            <option value="Indie">Indie</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <button onclick="Onboarding.finish()"
+            class="w-full py-4 bg-[var(--text-primary)] text-[var(--text-inverse)] font-bold uppercase tracking-widest rounded-full shadow-lg active:scale-95 transition">Initialize</button>
+    </div>
+    </div>
+
+    <!-- === MAIN APP CONTAINER === -->
+    <div id="app-container"
+        class="relative w-full h-full max-w-[480px] max-h-[950px] bg-[var(--bg-app)] md:border-[8px] md:border-[#1a1a1a] md:rounded-[3rem] overflow-hidden flex flex-col shadow-[0_0_60px_rgba(0,0,0,1)]">
+
+        <!-- Status Bar Spacer -->
+        <div
+            class="h-12 w-full flex items-center justify-between px-8 text-[11px] font-semibold opacity-0 z-50 absolute top-0 bg-gradient-to-b from-[var(--bg-app)] to-transparent pointer-events-none">
             <span id="system-time" class="font-mono">--:--</span>
-            <div class="flex gap-1.5 items-center">
+            <div class="flex gap-2">
                 <i data-lucide="wifi" class="w-3 h-3"></i>
                 <i data-lucide="battery" class="w-3 h-3"></i>
             </div>
         </div>
 
         <!-- Header -->
-        <header class="pt-12 px-6 pb-2 flex justify-between items-center z-40 relative">
+        <header class="pt-14 px-6 pb-4 flex justify-between items-center z-40 relative">
             <div>
-                <h1 class="text-2xl font-black tracking-tight">SNIPLIT</h1>
-                <p id="greeting" class="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">System Ready</p>
+                <h1 class="text-2xl font-black tracking-tight" style="color: var(--text-primary);">SNIPLIT</h1>
+                <p id="greeting" class="text-[10px] font-bold uppercase tracking-widest"
+                    style="color: var(--text-tertiary);">System Ready</p>
             </div>
             <div class="flex gap-3">
-                <button onclick="UI.showChangelog()" class="p-2.5 bg-zinc-900/50 rounded-full hover:bg-white/10 transition border border-white/5 relative">
-                    <i data-lucide="scroll-text" class="w-5 h-5 text-zinc-300"></i>
-                    <span class="absolute top-0 right-0 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-black"></span>
+                <button onclick="UI.showWrapped()"
+                    class="p-2.5 surface rounded-full hover:bg-[var(--bg-surface-hover)] transition active:scale-95">
+                    <i data-lucide="bar-chart-2" class="w-5 h-5" style="color: var(--text-secondary);"></i>
                 </button>
-                <button onclick="UI.openSettings()" class="p-2.5 bg-zinc-900/50 rounded-full hover:bg-white/10 transition border border-white/5">
-                    <i data-lucide="settings-2" class="w-5 h-5 text-zinc-300"></i>
+                <button onclick="UI.openSettings()"
+                    class="p-2.5 surface rounded-full hover:bg-[var(--bg-surface-hover)] transition active:scale-95">
+                    <i data-lucide="settings-2" class="w-5 h-5" style="color: var(--text-secondary);"></i>
                 </button>
             </div>
         </header>
 
-        <!-- Viewport -->
+        <!-- Notification Banner (Config Import) -->
+        <div id="notification-bar"
+            class="hidden mx-6 mb-4 p-3 rounded-xl border border-[var(--border-subtle)] bg-blue-600/10 border-blue-600/20 flex items-center gap-3 animate-slide-up">
+            <i data-lucide="database" class="w-5 h-5 text-blue-500"></i>
+            <div class="flex-1 text-xs">
+                <p class="font-bold text-blue-400">Config Import Available</p>
+                <p class="opacity-80">Backup your library in settings.</p>
+            </div>
+            <button onclick="document.getElementById('notification-bar').remove()"
+                class="text-blue-500 hover:text-white"><i data-lucide="x" class="w-4 h-4"></i></button>
+        </div>
+
+        <!-- Main Viewport -->
         <main id="view-port" class="flex-1 overflow-y-auto no-scrollbar px-6 pb-32 relative z-10 scroll-smooth">
 
-            <!-- HOME VIEW -->
-            <section id="view-home" class="view-section space-y-8 pt-4 pb-10">
-                <!-- Notification Bar -->
-                <div id="notification-bar" class="hidden flex items-center gap-3 bg-zinc-900/50 p-3 rounded-xl border border-white/5 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                    <div class="w-10 h-10 rounded-lg bg-blue-600 flex items-center justify-center shadow-sm text-white"><i data-lucide="download" class="w-5 h-5"></i></div>
-                    <div class="min-w-0 flex-1">
-                        <p class="text-[11px] font-bold truncate text-white">Config Import</p>
-                        <p class="text-[9px] text-zinc-500 font-bold truncate uppercase">Backup your data in Settings.</p>
-                    </div>
-                    <button onclick="document.getElementById('notification-bar').remove()" class="text-zinc-500 hover:text-white"><i data-lucide="x" class="w-4 h-4"></i></button>
-                </div>
+            <!-- === HOME VIEW === -->
+            <section id="view-home" class="view-section space-y-8 pt-2 pb-10">
 
-                <!-- Jump Back In -->
+                <!-- Jump Back In (With Fallback) -->
                 <div>
-                    <h2 class="text-xs font-bold text-zinc-600 uppercase tracking-widest mb-4 flex items-center gap-2">
-                        <i data-lucide="history" class="w-3 h-3"></i> Jump Back In
-                    </h2>
+                    <div class="flex justify-between items-end mb-4">
+                        <h2 class="text-xs font-bold uppercase tracking-widest flex items-center gap-2"
+                            style="color: var(--text-tertiary);">
+                            <i data-lucide="history" class="w-3 h-3"></i> Jump Back In
+                        </h2>
+                    </div>
                     <div id="recents-grid" class="grid grid-cols-2 gap-3">
-                        <div class="skeleton h-14 col-span-1"></div>
-                        <div class="skeleton h-14 col-span-1"></div>
-                    </div>
-                </div>
-
-                <!-- For You (Unique Discovery) -->
-                <div>
-                    <h2 class="text-xs font-bold text-zinc-600 uppercase tracking-widest mb-4 flex items-center gap-2">
-                        <i data-lucide="sparkles" class="w-3 h-3"></i> Made For You
-                    </h2>
-                    <!-- Discovery Tabs -->
-                    <div class="flex gap-2 overflow-x-auto no-scrollbar mb-4">
-                        <button onclick="UI.discoverType('daily')" class="px-4 py-1.5 bg-zinc-800 text-zinc-400 text-[10px] font-bold uppercase rounded-full whitespace-nowrap transition hover:bg-white/10 hover:text-white" id="tab-daily">Daily Mix</button>
-                        <button onclick="UI.discoverType('discover')" class="px-4 py-1.5 bg-zinc-800 text-zinc-400 text-[10px] font-bold uppercase rounded-full whitespace-nowrap transition hover:bg-white/10 hover:text-white" id="tab-discover">Discover</button>
-                        <button onclick="UI.discoverType('radio')" class="px-4 py-1.5 bg-zinc-800 text-zinc-400 text-[10px] font-bold uppercase rounded-full whitespace-nowrap transition hover:bg-white/10 hover:text-white" id="tab-radio">Radio</button>
-                    </div>
-                    <div id="for-you-grid" class="flex gap-4 overflow-x-auto no-scrollbar pb-4 snap-x">
-                        <!-- Injected via JS -->
-                    </div>
-                </div>
-
-                <!-- Concerts / Events -->
-                <div id="concerts-section">
-                    <h2 class="text-xs font-bold text-zinc-600 uppercase tracking-widest mb-4 flex items-center gap-2">
-                        <i data-lucide="map-pin" class="w-3 h-3"></i> Nearby Events
-                    </h2>
-                    <div id="concerts-list" class="space-y-3">
                         <!-- Injected JS -->
                     </div>
                 </div>
 
-                <!-- Artists You Follow -->
-                <div id="followed-section" class="hidden">
-                    <div class="flex justify-between items-end mb-4">
-                        <h2 class="text-xs font-bold text-zinc-600 uppercase tracking-widest flex items-center gap-2"><i data-lucide="user-check" class="w-3 h-3"></i> Following</h2>
-                        <button onclick="UI.toggleView('search')" class="text-[10px] text-white font-bold uppercase hover:underline">Find More</button>
+                <!-- For You / Discovery Engine -->
+                <div>
+                    <h2 class="text-xs font-bold uppercase tracking-widest mb-4 flex items-center gap-2"
+                        style="color: var(--text-tertiary);">
+                        <i data-lucide="sparkles" class="w-3 h-3"></i> Made For You
+                    </h2>
+                    <!-- Discovery Tabs -->
+                    <div class="flex gap-3 overflow-x-auto no-scrollbar mb-4">
+                        <button onclick="UI.setDiscoveryMode('daily')"
+                            class="px-4 py-1.5 bg-[var(--text-primary)] text-[var(--text-inverse)] text-[10px] font-bold uppercase rounded-full whitespace-nowrap transition shadow-lg"
+                            id="tab-daily">Daily Mix</button>
+                        <button onclick="UI.setDiscoveryMode('radio')"
+                            class="px-4 py-1.5 surface text-[var(--text-secondary)] text-[10px] font-bold uppercase rounded-full whitespace-nowrap transition hover:bg-[var(--bg-surface-hover)]"
+                            id="tab-radio">Radio</button>
+                        <button onclick="UI.setDiscoveryMode('discover')"
+                            class="px-4 py-1.5 surface text-[var(--text-secondary)] text-[10px] font-bold uppercase rounded-full whitespace-nowrap transition hover:bg-[var(--bg-surface-hover)]"
+                            id="tab-discover">Discover</button>
                     </div>
-                    <div id="followed-grid" class="flex gap-4 overflow-x-auto no-scrollbar pb-4"></div>
+                    <div id="for-you-grid" class="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                        <!-- Injected JS -->
+                    </div>
+                </div>
+
+                <!-- Progressive Sections Container (Intersection Observer Target) -->
+                <div id="home-genres-container" class="space-y-10 pb-24">
+                    <!-- Dynamic Sections: Pop, Rock, Hip-Hop, etc. -->
+                </div>
+
+                <!-- Loading Sentinel -->
+                <div id="scroll-sentinel" class="h-20 flex items-center justify-center opacity-0">
+                    <div
+                        class="w-6 h-6 border-2 border-[var(--bg-elevated)] border-t-[var(--text-primary)] rounded-full animate-spin">
+                    </div>
                 </div>
             </section>
 
-            <!-- SEARCH VIEW -->
+            <!-- === SEARCH VIEW === -->
             <section id="view-search" class="view-section hidden space-y-6 pt-4 pb-20">
-                <div class="sticky top-0 bg-black/95 backdrop-blur z-20 pb-2">
+                <div class="sticky top-0 bg-[var(--bg-app)]/95 backdrop-blur z-20 pb-2 pt-2">
                     <div class="relative group">
-                        <i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 group-focus-within:text-white transition"></i>
-                        <input type="text" id="main-search" placeholder="Search artists, songs, podcasts..." class="w-full bg-zinc-900 border border-zinc-800 rounded-2xl py-4 pl-12 pr-4 text-sm focus:outline-none focus:border-zinc-600 transition-all font-medium text-white placeholder-zinc-600 shadow-lg">
-                    </div>
-                    <!-- Search Type Toggles -->
-                    <div class="flex gap-2 mt-3">
-                         <button onclick="UI.setSearchMode('all')" class="search-mode-btn active px-3 py-1 bg-white text-black text-[10px] font-bold uppercase rounded-lg">All</button>
-                         <button onclick="UI.setSearchMode('podcast')" class="search-mode-btn px-3 py-1 bg-zinc-800 text-zinc-400 text-[10px] font-bold uppercase rounded-lg hover:bg-zinc-700">Podcasts</button>
+                        <i data-lucide="search"
+                            class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 transition-colors duration-300"
+                            style="color: var(--text-tertiary);"></i>
+                        <input type="text" id="main-search" placeholder="Search artists, songs..."
+                            class="w-full bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-2xl py-4 pl-12 pr-4 text-sm focus:outline-none focus:border-[var(--accent-secondary)] transition-all font-medium shadow-lg placeholder-zinc-600"
+                            style="color: var(--text-primary);">
                     </div>
                 </div>
 
+                <!-- Animated Loading -->
+                <div id="search-loading" class="hidden flex justify-center py-10 animate-fade-in">
+                    <div
+                        class="w-8 h-8 border-2 border-[var(--bg-elevated)] border-t-[var(--text-primary)] rounded-full animate-spin">
+                    </div>
+                </div>
+
+                <!-- Search History -->
                 <div id="search-history-panel" class="hidden">
                     <div class="flex justify-between items-center mb-2">
-                        <h3 class="text-[10px] font-bold uppercase text-zinc-600 tracking-widest">Recent</h3>
-                        <button onclick="Database.clearSearchHistory()" class="text-[10px] text-red-500 font-bold uppercase hover:underline">Clear</button>
+                        <h3 class="text-[10px] font-bold uppercase tracking-widest"
+                            style="color: var(--text-tertiary);">Recent</h3>
+                        <button onclick="Database.clearSearchHistory()"
+                            class="text-[10px] text-red-500 font-bold uppercase hover:underline">Clear</button>
                     </div>
                     <div id="search-history-chips" class="flex flex-wrap gap-2"></div>
                 </div>
@@ -334,120 +219,175 @@
                 <div id="search-results" class="space-y-2 min-h-[200px]"></div>
             </section>
 
-            <!-- LIBRARY VIEW -->
+            <!-- === LIBRARY VIEW === -->
             <section id="view-library" class="view-section hidden pt-4 space-y-6 pb-20">
                 <div class="flex gap-2 overflow-x-auto no-scrollbar pb-2">
-                    <button class="bg-white text-black px-5 py-2.5 rounded-full text-xs font-black uppercase tracking-wider shadow-lg flex-shrink-0">Library</button>
-                    <button onclick="UI.showCreatePlaylist()" class="bg-zinc-900 text-zinc-400 px-5 py-2.5 rounded-full text-xs font-bold uppercase tracking-wider border border-white/5 hover:border-white/20 transition flex-shrink-0 flex items-center gap-2"><i data-lucide="plus" class="w-3 h-3"></i> New Playlist</button>
-                    <button onclick="LocalFiles.triggerFile()" class="bg-zinc-900 text-zinc-400 px-5 py-2.5 rounded-full text-xs font-bold uppercase tracking-wider border border-white/5 hover:border-white/20 transition flex-shrink-0 flex items-center gap-2"><i data-lucide="file-audio" class="w-3 h-3"></i> File</button>
-                    <button onclick="LocalFiles.triggerFolder()" class="bg-zinc-900 text-zinc-400 px-5 py-2.5 rounded-full text-xs font-bold uppercase tracking-wider border border-white/5 hover:border-white/20 transition flex-shrink-0 flex items-center gap-2"><i data-lucide="folder-plus" class="w-3 h-3"></i> Folder</button>
+                    <button
+                        class="bg-[var(--text-primary)] text-[var(--text-inverse)] px-5 py-2.5 rounded-full text-xs font-black uppercase tracking-wider shadow-lg flex-shrink-0">Library</button>
+                    <button onclick="UI.showCreatePlaylist()"
+                        class="surface px-5 py-2.5 rounded-full text-xs font-bold uppercase tracking-wider border border-[var(--border-subtle)] hover:bg-[var(--bg-surface-hover)] transition flex-shrink-0 flex items-center gap-2"
+                        style="color: var(--text-secondary);"><i data-lucide="plus" class="w-3 h-3"></i> New</button>
+                    <button onclick="LocalFiles.triggerFile()"
+                        class="surface px-5 py-2.5 rounded-full text-xs font-bold uppercase tracking-wider border border-[var(--border-subtle)] hover:bg-[var(--bg-surface-hover)] transition flex-shrink-0 flex items-center gap-2"
+                        style="color: var(--text-secondary);"><i data-lucide="file-audio" class="w-3 h-3"></i>
+                        File</button>
                 </div>
                 <div id="library-list" class="space-y-1 pb-24"></div>
             </section>
 
-            <!-- GENERIC LIST VIEW (Used for Liked, Following, Local, Playlist) -->
+            <!-- === GENERIC LIST VIEW (Artist, Playlist, Liked, Local) === -->
             <section id="view-list" class="view-section hidden pt-4 space-y-6 pb-20">
-                <button onclick="Router.back()" class="text-zinc-500 hover:text-white flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest z-10 relative bg-zinc-900/50 px-3 py-1.5 rounded-full w-fit mb-4"><i data-lucide="arrow-left" class="w-3 h-3"></i> Back</button>
-                <div id="list-hero" class="space-y-4 animate-in fade-in duration-500"></div>
+                <button onclick="Router.back()"
+                    class="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest w-fit mb-4"
+                    style="color: var(--text-tertiary);"><i data-lucide="arrow-left" class="w-3 h-3"></i> Back</button>
+                <div id="list-hero" class="space-y-4 animate-slide-up"></div>
                 <div id="list-tracks" class="space-y-1"></div>
             </section>
 
-            <!-- ARTIST DETAIL VIEW -->
-            <section id="view-artist" class="view-section hidden pt-4 space-y-8 pb-20">
-                <button onclick="Router.back()" class="text-zinc-500 hover:text-white flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest z-10 relative bg-zinc-900/50 px-3 py-1.5 rounded-full w-fit"><i data-lucide="arrow-left" class="w-3 h-3"></i> Back</button>
-                <div id="artist-hero" class="space-y-2 relative z-10 animate-in fade-in slide-in-from-bottom-4 duration-500"></div>
-                <div id="artist-top-tracks" class="space-y-1 relative z-10"></div>
-                <div>
-                    <h3 class="text-sm font-bold text-zinc-500 uppercase mb-3">Albums</h3>
-                    <div id="artist-albums" class="grid grid-cols-2 gap-4 pb-20 relative z-10"></div>
-                </div>
-            </section>
         </main>
 
-        <!-- Mini Player -->
-        <div id="mini-player" class="hidden absolute bottom-24 left-4 right-4 glass rounded-2xl p-2.5 flex items-center gap-3 z-50 border border-white/10 cursor-pointer shadow-2xl transition-all duration-300 transform translate-y-0 hover:scale-[1.01]" onclick="UI.togglePlayer(true)">
-            <img id="mini-art" src="" class="w-10 h-10 rounded-lg object-cover bg-zinc-900 shadow-lg">
+        <!-- === MINI PLAYER === -->
+        <div id="mini-player"
+            class="hidden absolute bottom-24 left-4 right-4 glass rounded-2xl p-2.5 flex items-center gap-3 z-50 border border-[var(--border-subtle)] cursor-pointer shadow-2xl transition-all duration-300 hover:scale-[1.01]"
+            onclick="UI.togglePlayer(true)">
+            <img id="mini-art" src="" class="w-10 h-10 rounded-lg object-cover bg-[var(--bg-surface)] shadow-lg">
             <div class="flex-1 min-w-0 flex flex-col justify-center">
-                <h4 id="mini-title" class="text-xs font-bold truncate text-white">Not Playing</h4>
-                <p id="mini-artist" class="text-[10px] text-zinc-500 font-medium truncate uppercase tracking-wider">Select a track</p>
+                <h4 id="mini-title" class="text-xs font-bold truncate" style="color: var(--text-primary);">Not Playing
+                </h4>
+                <p id="mini-artist" class="text-[10px] font-medium truncate uppercase tracking-wider"
+                    style="color: var(--text-tertiary);">Select a track</p>
             </div>
             <div class="flex items-center gap-2 pr-2">
-                <button onclick="event.stopPropagation(); AudioEngine.toggle()" class="p-2 bg-white/10 rounded-full active:scale-90 transition"><i data-lucide="play" id="mini-play-icon" class="w-4 h-4 fill-white"></i></button>
+                <button onclick="event.stopPropagation(); AudioEngine.toggle()"
+                    class="p-2 bg-[var(--bg-elevated)] rounded-full active:scale-90 transition"><i data-lucide="play"
+                        id="mini-play-icon" class="w-4 h-4 fill-[var(--text-primary)]"></i></button>
             </div>
-            <div class="absolute bottom-0 left-2 right-2 h-[2px] bg-zinc-800 rounded-full overflow-hidden">
-                <div id="mini-progress" class="h-full bg-white w-0 transition-all duration-300 ease-linear rounded-full"></div>
+            <div class="absolute bottom-0 left-2 right-2 h-[2px] bg-[var(--bg-elevated)] rounded-full overflow-hidden">
+                <div id="mini-progress"
+                    class="h-full bg-[var(--accent-secondary)] w-0 transition-all duration-300 ease-linear rounded-full">
+                </div>
             </div>
         </div>
 
-        <!-- Navigation Bar -->
-        <nav class="h-24 glass flex items-center justify-around px-2 pb-2 z-40 relative border-t border-white/5">
-            <button onclick="Router.go('home')" class="nav-btn active flex flex-col items-center gap-1.5 text-zinc-600 group w-16 transition-colors" data-view="home">
-                <i data-lucide="home" class="w-5 h-5 group-[.active]:text-white transition-colors"></i>
-                <span class="text-[9px] font-bold uppercase tracking-widest group-[.active]:text-white transition-colors">Home</span>
+        <!-- === NAV BAR === -->
+        <nav
+            class="h-24 glass flex items-center justify-around px-2 pb-2 z-40 relative border-t border-[var(--border-subtle)]">
+            <button onclick="Router.go('home')"
+                class="nav-btn active flex flex-col items-center gap-1.5 w-16 transition-colors" data-view="home">
+                <i data-lucide="home" class="w-5 h-5 group-[.active]:text-white transition-colors"
+                    style="color: var(--text-tertiary);"></i>
+                <span
+                    class="text-[9px] font-bold uppercase tracking-widest group-[.active]:text-white transition-colors"
+                    style="color: var(--text-tertiary);">Home</span>
             </button>
-            <button onclick="Router.go('search')" class="nav-btn flex flex-col items-center gap-1.5 text-zinc-600 group w-16 transition-colors" data-view="search">
-                <i data-lucide="search" class="w-5 h-5 group-[.active]:text-white transition-colors"></i>
-                <span class="text-[9px] font-bold uppercase tracking-widest group-[.active]:text-white transition-colors">Find</span>
+            <button onclick="Router.go('search')"
+                class="nav-btn flex flex-col items-center gap-1.5 w-16 transition-colors" data-view="search">
+                <i data-lucide="search" class="w-5 h-5 group-[.active]:text-white transition-colors"
+                    style="color: var(--text-tertiary);"></i>
+                <span
+                    class="text-[9px] font-bold uppercase tracking-widest group-[.active]:text-white transition-colors"
+                    style="color: var(--text-tertiary);">Find</span>
             </button>
-            <button onclick="Router.go('library');UI.renderLibrary();" class="nav-btn flex flex-col items-center gap-1.5 text-zinc-600 group w-16 transition-colors" data-view="library">
-                <i data-lucide="library" class="w-5 h-5 group-[.active]:text-white transition-colors"></i>
-                <span class="text-[9px] font-bold uppercase tracking-widest group-[.active]:text-white transition-colors">Data</span>
+            <button onclick="Router.go('library');UI.renderLibrary();"
+                class="nav-btn flex flex-col items-center gap-1.5 w-16 transition-colors" data-view="library">
+                <i data-lucide="library" class="w-5 h-5 group-[.active]:text-white transition-colors"
+                    style="color: var(--text-tertiary);"></i>
+                <span
+                    class="text-[9px] font-bold uppercase tracking-widest group-[.active]:text-white transition-colors"
+                    style="color: var(--text-tertiary);">Data</span>
             </button>
         </nav>
 
-        <!-- Full Player Overlay -->
-        <div id="full-player" class="hidden fixed inset-0 z-[100] bg-black translate-y-full transition-transform duration-500 cubic-bezier(0.32, 0.72, 0, 1) flex flex-col">
+        <!-- === FULL PLAYER OVERLAY === -->
+        <div id="full-player"
+            class="hidden fixed inset-0 z-[100] bg-[var(--bg-app)] translate-y-full transition-transform duration-500 cubic-bezier(0.32, 0.72, 0, 1) flex flex-col">
+            <!-- Top Controls -->
             <div class="px-8 pt-12 flex justify-between items-center z-30 relative">
-                <button onclick="UI.togglePlayer(false)" class="p-2 text-white/50 hover:text-white transition"><i data-lucide="chevron-down" class="w-6 h-6"></i></button>
+                <button onclick="UI.togglePlayer(false)" class="p-2 opacity-50 hover:opacity-100 transition"><i
+                        data-lucide="chevron-down" class="w-6 h-6"></i></button>
                 <div class="text-center">
-                    <p class="text-[10px] font-bold uppercase tracking-[0.3em] text-zinc-500">Now Streaming</p>
-                    <p id="player-quality" class="text-[9px] font-mono text-zinc-600 mt-1 opacity-0 transition">HQ • ON</p>
+                    <p class="text-[10px] font-bold uppercase tracking-[0.3em] opacity-50">Now Streaming</p>
+                    <p id="player-quality" class="text-[9px] font-mono mt-1 opacity-0 transition">HQ • LOSSLESS</p>
                 </div>
-                <button onclick="UI.toggleLyrics()" class="p-2 text-white/50 hover:text-white transition"><i data-lucide="mic-2" class="w-5 h-5"></i></button>
+                <button onclick="UI.toggleLyrics()" class="p-2 opacity-50 hover:opacity-100 transition"><i
+                        data-lucide="mic-2" class="w-5 h-5"></i></button>
             </div>
 
+            <!-- Visual Area -->
             <div class="flex-1 flex flex-col items-center justify-center p-6 relative overflow-hidden">
                 <canvas id="viz-canvas"></canvas>
-                <div class="relative z-10 w-full max-w-[320px] aspect-square rounded-[2rem] overflow-hidden shadow-[0_40px_100px_rgba(255,255,255,0.05)] border border-white/5 ring-1 ring-white/10 bg-zinc-900">
-                    <img id="player-art" src="" class="w-full h-full object-cover transition-transform duration-700">
+                <div
+                    class="relative z-10 w-full max-w-[320px] aspect-square rounded-[2rem] overflow-hidden shadow-[0_40px_100px_rgba(0,0,0,0.3)] border border-white/5 ring-1 ring-white/10 bg-zinc-900">
+                    <img id="player-art" src="" class="w-full h-full object-cover">
                 </div>
-                <div id="lyrics-panel"></div>
+                <!-- Lyrics Panel (Hidden by default) -->
+                <div id="lyrics-panel"
+                    class="absolute inset-0 z-20 flex flex-col pt-24 px-4 pb-32 overflow-y-auto no-scrollbar hidden">
+                    <div id="lyrics-container" class="flex flex-col items-center space-y-6 w-full"></div>
+                </div>
             </div>
 
+            <!-- Controls -->
             <div class="px-8 pb-12 space-y-8 relative z-30">
                 <div class="flex justify-between items-end">
                     <div class="flex-1 min-w-0 pr-4 space-y-1">
                         <div class="flex items-center gap-2 mb-1">
-                            <h2 id="player-title" class="text-2xl font-black truncate text-white leading-tight tracking-tight">Title</h2>
-                            <span id="explicit-badge" class="hidden bg-zinc-800 text-zinc-400 text-[9px] font-bold px-1.5 py-0.5 rounded border border-zinc-700">E</span>
+                            <h2 id="player-title" class="text-2xl font-black truncate leading-tight tracking-tight"
+                                style="color: var(--text-primary);">Title</h2>
+                            <span id="explicit-badge"
+                                class="hidden bg-[var(--bg-elevated)] text-[var(--text-tertiary)] text-[9px] font-bold px-1.5 py-0.5 rounded border border-[var(--border-default)]">E</span>
                         </div>
-                        <p id="player-artist" class="text-zinc-400 font-bold uppercase tracking-widest text-xs hover:text-white transition cursor-pointer active:scale-95 origin-left" onclick="UI.openArtistFromPlayer()">Artist</p>
+                        <p id="player-artist"
+                            class="font-bold uppercase tracking-widest text-xs hover:opacity-80 transition cursor-pointer active:scale-95 origin-left"
+                            onclick="UI.openArtistFromPlayer()" style="color: var(--text-secondary);">Artist</p>
                     </div>
                     <div class="flex gap-4">
-                        <button id="like-btn" onclick="Library.toggleLike()" class="p-3 bg-zinc-900 rounded-full transition active:scale-90 border border-white/5 hover:border-white/20 shadow-lg"><i data-lucide="heart" class="w-5 h-5 text-zinc-500"></i></button>
-                        <button onclick="UI.openAddToPlaylist()" class="p-3 bg-zinc-900 rounded-full transition active:scale-90 border border-white/5 hover:border-white/20 shadow-lg"><i data-lucide="plus" class="w-5 h-5 text-zinc-500"></i></button>
-                        <button onclick="UI.blockCurrentArtist()" class="p-3 bg-zinc-900 rounded-full transition active:scale-90 border border-white/5 hover:border-red-500/50 shadow-lg"><i data-lucide="ban" class="w-5 h-5 text-zinc-500"></i></button>
+                        <button id="like-btn" onclick="Library.toggleLike()"
+                            class="p-3 surface rounded-full transition active:scale-90 border border-[var(--border-subtle)] shadow-lg hover:border-[var(--accent-secondary)]"><i
+                                data-lucide="heart" class="w-5 h-5" style="color: var(--text-tertiary);"></i></button>
+                        <button onclick="UI.openAddToPlaylist()"
+                            class="p-3 surface rounded-full transition active:scale-90 border border-[var(--border-subtle)] shadow-lg hover:border-[var(--accent-secondary)]"><i
+                                data-lucide="plus" class="w-5 h-5" style="color: var(--text-tertiary);"></i></button>
+                        <button onclick="UI.blockCurrentArtist()"
+                            class="p-3 surface rounded-full transition active:scale-90 border border-[var(--border-subtle)] shadow-lg hover:text-red-500"
+                            title="Block Artist"><i data-lucide="ban" class="w-5 h-5"
+                                style="color: var(--text-tertiary);"></i></button>
                     </div>
                 </div>
 
                 <div class="space-y-3">
-                    <input type="range" id="player-progress" value="0" step="0.1" class="w-full h-1 bg-zinc-800 accent-white hover:h-1.5 transition-all" oninput="AudioEngine.seek(this.value)">
-                    <div class="flex justify-between text-[10px] font-mono font-medium text-zinc-500">
+                    <input type="range" id="player-progress" value="0" step="0.1"
+                        class="w-full h-1 bg-[var(--bg-elevated)] accent-[var(--text-primary)] hover:h-1.5 transition-all"
+                        oninput="AudioEngine.seek(this.value)">
+                    <div class="flex justify-between text-[10px] font-mono font-medium"
+                        style="color: var(--text-tertiary);">
                         <span id="time-cur">0:00</span>
                         <span id="time-total">0:00</span>
                     </div>
                 </div>
 
                 <div class="flex justify-between items-center px-2">
-                    <button onclick="Queue.toggleShuffle()" id="shuffle-btn" class="text-zinc-600 p-2 hover:text-white transition active:scale-90"><i data-lucide="shuffle" class="w-5 h-5"></i></button>
-                    <button onclick="Queue.prev()" class="text-white p-2 active:scale-90 transition hover:text-zinc-300"><i data-lucide="skip-back" class="w-8 h-8 fill-white"></i></button>
-                    <button onclick="AudioEngine.toggle()" id="main-play-btn" class="w-20 h-20 bg-white text-black rounded-full flex items-center justify-center shadow-[0_0_40px_rgba(255,255,255,0.15)] active:scale-95 transition hover:scale-105 border border-white/10"><i data-lucide="play" class="w-8 h-8 fill-black ml-1"></i></button>
-                    <button onclick="Queue.next()" class="text-white p-2 active:scale-90 transition hover:text-zinc-300"><i data-lucide="skip-forward" class="w-8 h-8 fill-white"></i></button>
-                    <button onclick="Queue.toggleLoop()" id="loop-btn" class="text-zinc-600 p-2 hover:text-white transition active:scale-90"><i data-lucide="repeat" class="w-5 h-5"></i></button>
+                    <button onclick="Queue.toggleShuffle()" id="shuffle-btn"
+                        class="p-2 hover:text-[var(--text-primary)] transition active:scale-90"
+                        style="color: var(--text-tertiary);"><i data-lucide="shuffle" class="w-5 h-5"></i></button>
+                    <button onclick="Queue.prev()" class="p-2 active:scale-90 transition hover:opacity-80"
+                        style="color: var(--text-primary);"><i data-lucide="skip-back"
+                            class="w-8 h-8 fill-[var(--text-primary)]"></i></button>
+                    <button onclick="AudioEngine.toggle()" id="main-play-btn"
+                        class="w-20 h-20 bg-[var(--text-primary)] text-[var(--text-inverse)] rounded-full flex items-center justify-center shadow-[0_0_40px_rgba(255,255,255,0.15)] active:scale-95 transition hover:scale-105 border border-[var(--border-subtle)]"><i
+                            data-lucide="play" class="w-8 h-8 fill-[var(--text-inverse)] ml-1"></i></button>
+                    <button onclick="Queue.next()" class="p-2 active:scale-90 transition hover:opacity-80"
+                        style="color: var(--text-primary);"><i data-lucide="skip-forward"
+                            class="w-8 h-8 fill-[var(--text-primary)]"></i></button>
+                    <button onclick="Queue.toggleLoop()" id="loop-btn"
+                        class="p-2 hover:text-[var(--text-primary)] transition active:scale-90"
+                        style="color: var(--text-tertiary);"><i data-lucide="repeat" class="w-5 h-5"></i></button>
                 </div>
 
                 <div class="flex justify-center">
-                    <button onclick="UI.toggleQueue()" class="flex flex-col items-center gap-1 text-zinc-600 hover:text-white transition">
+                    <button onclick="UI.toggleQueue()"
+                        class="flex flex-col items-center gap-1 hover:text-[var(--text-primary)] transition"
+                        style="color: var(--text-tertiary);">
                         <i data-lucide="list-music" class="w-4 h-4"></i>
                         <span class="text-[9px] font-bold uppercase tracking-widest">Up Next</span>
                     </button>
@@ -455,1754 +395,260 @@
             </div>
         </div>
 
-        <!-- Queue View -->
-        <div id="view-queue" class="hidden h-full flex flex-col p-4 overflow-y-auto pb-24 relative bg-black z-[150]">
-            <div class="flex justify-between items-center mb-6">
-                <h2 class="text-3xl font-black text-white tracking-tighter">Queue</h2>
-                <button onclick="UI.toggleQueue()" class="p-2 bg-zinc-800 rounded-full text-white"><i data-lucide="x" class="w-6 h-6"></i></button>
+        <!-- === QUEUE SLIDE UP === -->
+        <div id="view-queue"
+            class="queue-hidden absolute inset-0 z-[150] bg-[var(--bg-app)] flex flex-col border-t border-[var(--border-default)]">
+            <div class="flex justify-between items-center p-6 border-b border-[var(--border-subtle)]">
+                <div class="w-8"></div> <!-- Drag handle area -->
+                <h2 class="text-lg font-black uppercase tracking-wider">Queue</h2>
+                <button onclick="UI.toggleQueue()"
+                    class="w-8 h-8 rounded-full bg-[var(--bg-surface)] flex items-center justify-center border border-[var(--border-subtle)]"><i
+                        data-lucide="x" class="w-4 h-4"></i></button>
             </div>
-            <div id="queue-now-playing" class="bg-zinc-900 rounded-2xl p-6 mb-8 shadow-2xl border border-white/5 flex gap-6"></div>
-            <h3 class="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-4">Up Next</h3>
-            <div id="queue-up-next-list" class="space-y-3"></div>
+            <div class="flex-1 overflow-y-auto p-4">
+                <div id="queue-now-playing"
+                    class="surface rounded-2xl p-6 mb-8 shadow-lg border border-[var(--border-subtle)] flex gap-6">
+                </div>
+                <h3 class="text-xs font-bold uppercase tracking-widest mb-4 px-2" style="color: var(--text-tertiary);">
+                    Up Next</h3>
+                <div id="queue-up-next-list" class="space-y-3"></div>
+            </div>
         </div>
 
-        <!-- Settings Modal -->
-        <div id="modal-settings" class="hidden fixed inset-0 z-[250] glass p-8 pt-16 flex flex-col animate-in fade-in duration-300">
+        <!-- === SETTINGS MODAL === -->
+        <div id="modal-settings" class="hidden fixed inset-0 z-[250] glass p-8 pt-16 flex flex-col animate-fade-in">
             <div class="flex justify-between items-center mb-8">
                 <h2 class="text-3xl font-black tracking-tight">Settings</h2>
-                <button onclick="UI.closeSettings()" class="p-2 hover:bg-white/10 rounded-full"><i data-lucide="x" class="w-6 h-6"></i></button>
+                <button onclick="UI.closeSettings()" class="p-2 surface rounded-full"><i data-lucide="x"
+                        class="w-6 h-6"></i></button>
             </div>
             <div class="space-y-8 overflow-y-auto no-scrollbar flex-1 pb-10">
                 <!-- Account -->
                 <div class="space-y-4">
-                    <h3 class="text-xs font-bold uppercase tracking-widest text-zinc-500 ml-2">Profile</h3>
-                    <div class="flex items-center gap-4 bg-zinc-900/50 p-4 rounded-2xl border border-white/5 shadow-sm">
-                        <div class="w-14 h-14 rounded-full bg-gradient-to-tr from-zinc-700 to-zinc-900 flex items-center justify-center border border-white/10"><i data-lucide="user" class="w-6 h-6 text-zinc-300"></i></div>
+                    <h3 class="text-xs font-bold uppercase tracking-widest ml-2" style="color: var(--text-tertiary);">
+                        Profile</h3>
+                    <div class="flex items-center gap-4 surface p-4 rounded-2xl shadow-sm">
+                        <div
+                            class="w-14 h-14 rounded-full bg-gradient-to-tr from-zinc-700 to-zinc-900 flex items-center justify-center border border-[var(--border-default)]">
+                            <i data-lucide="user" class="w-6 h-6 text-zinc-300"></i></div>
                         <div class="flex-1">
-                            <input type="text" id="pref-name" onchange="Database.save('user_name', this.value)" class="bg-transparent font-bold text-lg outline-none w-full placeholder-zinc-600 text-white" placeholder="Display Name">
-                            <p class="text-[10px] text-zinc-500 uppercase tracking-wider font-bold">SNIPLIT User</p>
+                            <input type="text" id="pref-name" onchange="Database.save('user_name', this.value)"
+                                class="bg-transparent font-bold text-lg outline-none w-full"
+                                style="color: var(--text-primary);" placeholder="Display Name">
+                            <p class="text-[10px] uppercase tracking-wider font-bold"
+                                style="color: var(--text-tertiary);">SNIPLIT User</p>
                         </div>
                     </div>
                 </div>
 
-                <!-- Preferences (Expanded) -->
-                <div class="space-y-5">
-                    <h3 class="text-xs font-bold uppercase tracking-widest text-zinc-500 ml-2">Audio</h3>
-                    
-                    <!-- 1. Hi-Res -->
+                <!-- Preferences -->
+                <div class="space-y-6">
+                    <h3 class="text-xs font-bold uppercase tracking-widest ml-2" style="color: var(--text-tertiary);">
+                        Appearance</h3>
+
                     <div class="flex justify-between items-center py-1 px-2">
                         <div>
-                            <span class="text-sm font-bold block">Hi-Res Audio</span>
-                            <span class="text-[10px] text-zinc-500 font-medium">Prioritize lossless streams</span>
+                            <span class="text-sm font-bold block" style="color: var(--text-primary);">Light Mode</span>
+                            <span class="text-[10px] font-medium" style="color: var(--text-tertiary);">High contrast
+                                theme</span>
                         </div>
-                        <div class="w-11 h-6 bg-zinc-800 rounded-full relative cursor-pointer transition-colors" id="toggle-quality" onclick="UI.toggleSetting('quality', this)">
-                            <div class="absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition-transform duration-200"></div>
-                        </div>
+                        <div class="toggle-switch" id="toggle-lightMode" onclick="UI.toggleLightMode(this)"></div>
                     </div>
 
-                    <!-- 2. Normalization -->
+                    <h3 class="text-xs font-bold uppercase tracking-widest ml-2 pt-4"
+                        style="color: var(--text-tertiary);">Audio</h3>
+
                     <div class="flex justify-between items-center py-1 px-2">
                         <div>
-                            <span class="text-sm font-bold block">Audio Normalize</span>
-                            <span class="text-[10px] text-zinc-500 font-medium">Stabilize volume levels</span>
+                            <span class="text-sm font-bold block" style="color: var(--text-primary);">Audio
+                                Quality</span>
+                            <span class="text-[10px] font-medium" style="color: var(--text-tertiary);">Hi-Res /
+                                Lossless</span>
                         </div>
-                        <div class="w-11 h-6 bg-white rounded-full relative cursor-pointer transition-colors" id="toggle-normalize" onclick="UI.toggleSetting('normalize', this)">
-                            <div class="absolute left-1 top-1 w-4 h-4 bg-black rounded-full transition-transform duration-200 translate-x-5"></div>
-                        </div>
+                        <div class="toggle-switch active" id="toggle-quality"
+                            onclick="UI.toggleSetting('quality', this)"></div>
                     </div>
 
-                    <!-- 3. Crossfade -->
-                    <div class="flex justify-between items-center py-1 px-2">
-                         <div>
-                            <span class="text-sm font-bold block">Crossfade</span>
-                            <span class="text-[10px] text-zinc-500 font-medium">Blend tracks (Simulated)</span>
-                        </div>
-                        <div class="w-11 h-6 bg-zinc-800 rounded-full relative cursor-pointer transition-colors" id="toggle-crossfade" onclick="UI.toggleSetting('crossfade', this)">
-                            <div class="absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition-transform duration-200"></div>
-                        </div>
-                    </div>
-
-                    <h3 class="text-xs font-bold uppercase tracking-widest text-zinc-500 ml-2 mt-6">Interface</h3>
-
-                    <!-- 4. Light Mode -->
                     <div class="flex justify-between items-center py-1 px-2">
                         <div>
-                            <span class="text-sm font-bold block">Light Mode</span>
-                            <span class="text-[10px] text-zinc-500 font-medium">High contrast theme</span>
+                            <span class="text-sm font-bold block" style="color: var(--text-primary);">Normalize</span>
+                            <span class="text-[10px] font-medium" style="color: var(--text-tertiary);">Stabilize volume
+                                levels</span>
                         </div>
-                        <div class="w-11 h-6 bg-zinc-800 rounded-full relative cursor-pointer transition-colors" id="toggle-lightMode" onclick="UI.toggleLightMode(this)">
-                            <div class="absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition-transform duration-200"></div>
-                        </div>
+                        <div class="toggle-switch active" id="toggle-normalize"
+                            onclick="UI.toggleSetting('normalize', this)"></div>
                     </div>
 
-                    <!-- 5. Visualizer -->
                     <div class="flex justify-between items-center py-1 px-2">
                         <div>
-                            <span class="text-sm font-bold block">Oscilloscope</span>
-                            <span class="text-[10px] text-zinc-500 font-medium">Show signal visualization</span>
+                            <span class="text-sm font-bold block" style="color: var(--text-primary);">Crossfade</span>
+                            <span class="text-[10px] font-medium" style="color: var(--text-tertiary);">Blend between
+                                tracks</span>
                         </div>
-                        <div class="w-11 h-6 bg-white rounded-full relative cursor-pointer transition-colors" id="toggle-viz" onclick="UI.toggleViz(); UI.toggleSetting('viz', this)">
-                            <div class="absolute left-1 top-1 w-4 h-4 bg-black rounded-full transition-transform duration-200 translate-x-5"></div>
+                        <div class="toggle-switch" id="toggle-crossfade" onclick="UI.toggleSetting('crossfade', this)">
                         </div>
                     </div>
 
-                    <!-- 6. Haptics -->
                     <div class="flex justify-between items-center py-1 px-2">
                         <div>
-                            <span class="text-sm font-bold block">Haptic Feedback</span>
-                            <span class="text-[10px] text-zinc-500 font-medium">Vibrate on interaction</span>
+                            <span class="text-sm font-bold block" style="color: var(--text-primary);">Gapless
+                                Playback</span>
+                            <span class="text-[10px] font-medium" style="color: var(--text-tertiary);">Remove
+                                silence</span>
                         </div>
-                        <div class="w-11 h-6 bg-white rounded-full relative cursor-pointer transition-colors" id="toggle-haptics" onclick="UI.toggleSetting('haptics', this)">
-                            <div class="absolute left-1 top-1 w-4 h-4 bg-black rounded-full transition-transform duration-200 translate-x-5"></div>
+                        <div class="toggle-switch" id="toggle-gapless" onclick="UI.toggleSetting('gapless', this)">
                         </div>
                     </div>
 
-                    <!-- 7. Search History -->
                     <div class="flex justify-between items-center py-1 px-2">
                         <div>
-                            <span class="text-sm font-bold block">Save History</span>
-                            <span class="text-[10px] text-zinc-500 font-medium">Remember searches</span>
+                            <span class="text-sm font-bold block" style="color: var(--text-primary);">Haptics</span>
+                            <span class="text-[10px] font-medium" style="color: var(--text-tertiary);">Vibration
+                                feedback</span>
                         </div>
-                        <div class="w-11 h-6 bg-white rounded-full relative cursor-pointer transition-colors" id="toggle-historyEnabled" onclick="UI.toggleSetting('historyEnabled', this)">
-                            <div class="absolute left-1 top-1 w-4 h-4 bg-black rounded-full transition-transform duration-200 translate-x-5"></div>
-                        </div>
+                        <div class="toggle-switch active" id="toggle-haptics"
+                            onclick="UI.toggleSetting('haptics', this)"></div>
                     </div>
-
-                    <!-- 8. Stream Quality -->
-                    <div class="flex justify-between items-center py-1 px-2">
-                        <div>
-                            <span class="text-sm font-bold block">Stream Source</span>
-                            <span class="text-[10px] text-zinc-500 font-medium">YT Audio vs iTunes Preview</span>
-                        </div>
-                         <select id="pref-source" onchange="UI.toggleSetting('streamSource', this); UI.toast('Source Updated')" class="bg-zinc-800 text-white text-xs rounded-lg px-2 py-1 outline-none">
-                            <option value="auto">Auto</option>
-                            <option value="itunes">Preview Only</option>
-                            <option value="yt">YouTube (Experimental)</option>
-                        </select>
-                    </div>
-
-                    <!-- 9. Lyrics Provider -->
-                     <div class="flex justify-between items-center py-1 px-2">
-                        <div>
-                            <span class="text-sm font-bold block">Lyrics Source</span>
-                            <span class="text-[10px] text-zinc-500 font-medium">LRCLib or Musixmatch</span>
-                        </div>
-                         <select onchange="UI.toast('Feature Saved')" class="bg-zinc-800 text-white text-xs rounded-lg px-2 py-1 outline-none">
-                            <option>LRCLib (Default)</option>
-                        </select>
-                    </div>
-                    
-                    <!-- 10. Analytics -->
-                    <div class="flex justify-between items-center py-1 px-2">
-                        <div>
-                            <span class="text-sm font-bold block">Data Collection</span>
-                            <span class="text-[10px] text-zinc-500 font-medium">For Wrapped/Analytics</span>
-                        </div>
-                        <div class="w-11 h-6 bg-white rounded-full relative cursor-pointer transition-colors" id="toggle-analytics" onclick="UI.toggleSetting('analyticsEnabled', this)">
-                            <div class="absolute left-1 top-1 w-4 h-4 bg-black rounded-full transition-transform duration-200 translate-x-5"></div>
-                        </div>
-                    </div>
-
-                     <!-- 11. Explicit Content -->
-                     <div class="flex justify-between items-center py-1 px-2">
-                        <div>
-                            <span class="text-sm font-bold block">Explicit Content</span>
-                            <span class="text-[10px] text-zinc-500 font-medium">Allow explicit lyrics</span>
-                        </div>
-                        <div class="w-11 h-6 bg-white rounded-full relative cursor-pointer transition-colors" id="toggle-explicit" onclick="UI.toggleSetting('allowExplicit', this)">
-                            <div class="absolute left-1 top-1 w-4 h-4 bg-black rounded-full transition-transform duration-200 translate-x-5"></div>
-                        </div>
-                    </div>
-
                 </div>
 
-                <!-- Danger Zone -->
-                <div class="pt-8 border-t border-white/5 space-y-4">
+                <!-- Data -->
+                <div class="pt-8 border-t border-[var(--border-subtle)] space-y-4">
+                    <h3 class="text-xs font-bold uppercase tracking-widest ml-2" style="color: var(--text-tertiary);">
+                        Data</h3>
                     <div class="flex gap-4">
-                        <button onclick="DataManager.exportConfig()" class="flex-1 text-left text-white text-xs font-bold uppercase tracking-wider py-3 px-2 bg-zinc-800 rounded-lg flex items-center gap-2 hover:bg-zinc-700 transition"><i data-lucide="download" class="w-4 h-4"></i> Export Data</button>
-                        <button onclick="document.getElementById('import-input').click()" class="flex-1 text-left text-white text-xs font-bold uppercase tracking-wider py-3 px-2 bg-zinc-800 rounded-lg flex items-center gap-2 hover:bg-zinc-700 transition"><i data-lucide="upload" class="w-4 h-4"></i> Import Data</button>
+                        <button onclick="DataManager.exportConfig()"
+                            class="flex-1 text-left p-4 rounded-xl surface text-sm font-bold uppercase tracking-wider hover:bg-[var(--bg-surface-hover)] transition flex items-center justify-center gap-2"
+                            style="color: var(--text-primary);"><i data-lucide="download" class="w-4 h-4"></i>
+                            Export</button>
+                        <button onclick="document.getElementById('import-input').click()"
+                            class="flex-1 text-left p-4 rounded-xl surface text-sm font-bold uppercase tracking-wider hover:bg-[var(--bg-surface-hover)] transition flex items-center justify-center gap-2"
+                            style="color: var(--text-primary);"><i data-lucide="upload" class="w-4 h-4"></i>
+                            Import</button>
+                        <input type="file" id="import-input" class="hidden" accept=".json"
+                            onchange="DataManager.importConfig(this)">
                     </div>
-                    <input type="file" id="import-input" class="hidden" accept=".json" onchange="DataManager.importConfig(this)">
-                    <button onclick="Database.clearSearchHistory(); UI.toast('Search History Cleared')" class="w-full text-left text-zinc-400 text-xs font-bold uppercase tracking-wider py-3 px-2 hover:bg-white/5 rounded-lg transition">Clear Search History</button>
-                    <button onclick="UI.logout()" class="w-full text-left text-zinc-400 text-xs font-bold uppercase tracking-wider py-3 px-2 hover:bg-white/5 rounded-lg transition">Log Out</button>
-                    <button onclick="Database.hardReset()" class="w-full text-left text-red-500 text-xs font-bold uppercase tracking-wider py-3 px-2 hover:bg-red-500/10 rounded-lg transition">Factory Reset App</button>
+                    <button onclick="UI.logout()"
+                        class="w-full text-left p-4 rounded-xl surface text-sm font-bold uppercase tracking-wider hover:bg-[var(--bg-surface-hover)] transition"
+                        style="color: var(--text-secondary);">Log Out</button>
+                    <button onclick="Database.hardReset()"
+                        class="w-full text-left p-4 rounded-xl border border-red-500/30 text-sm font-bold uppercase tracking-wider hover:bg-red-500/10 transition text-red-500">Factory
+                        Reset App</button>
                     <div class="text-center pt-4">
-                        <p class="text-zinc-700 text-[10px] font-mono uppercase">SNIPLIT v2.0.0 • Public Build</p>
+                        <p class="text-[10px] font-mono uppercase opacity-50">SNIPLIT v2.0 • Build 2026</p>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Add to Playlist Modal -->
-        <div id="modal-add-playlist" class="hidden fixed inset-0 z-[260] glass p-6 pt-20 flex flex-col animate-in fade-in">
+        <!-- === ADD TO PLAYLIST === -->
+        <div id="modal-add-playlist" class="hidden fixed inset-0 z-[260] glass p-6 pt-20 flex flex-col animate-fade-in">
             <h3 class="text-xl font-black mb-6">Add to Playlist</h3>
             <div id="playlist-select-list" class="space-y-2 overflow-y-auto flex-1"></div>
-            <button onclick="document.getElementById('modal-add-playlist').classList.add('hidden')" class="mt-4 p-4 text-center text-xs font-bold uppercase text-zinc-500">Cancel</button>
+            <button onclick="document.getElementById('modal-add-playlist').classList.add('hidden')"
+                class="mt-4 p-4 text-center text-xs font-bold uppercase"
+                style="color: var(--text-tertiary);">Cancel</button>
         </div>
 
-        <!-- Wrapped / Analytics View -->
-        <div id="wrapped-modal" class="hidden fixed inset-0 z-[300] bg-black overflow-y-auto">
+        <!-- === WRAPPED === -->
+        <div id="wrapped-modal" class="hidden fixed inset-0 z-[300] bg-[var(--bg-app)] overflow-y-auto">
             <div class="min-h-screen flex flex-col items-center justify-center p-6 text-center space-y-8 pb-24">
-                <button onclick="document.getElementById('wrapped-modal').classList.add('hidden')" class="absolute top-6 right-6 p-2 bg-white/10 rounded-full hover:bg-white/20"><i data-lucide="x" class="w-6 h-6"></i></button>
-                <div id="wrapped-slide-container" class="w-full max-w-sm transition-all duration-500 relative min-h-[400px] flex flex-col justify-center items-center"></div>
-                <button id="wrapped-next-btn" onclick="Wrapped.nextSlide()" class="hidden px-10 py-4 bg-white text-black rounded-full font-black uppercase tracking-widest text-sm hover:scale-105 transition shadow-[0_0_30px_rgba(255,255,255,0.2)]">Next</button>
+                <button onclick="document.getElementById('wrapped-modal').classList.add('hidden')"
+                    class="absolute top-6 right-6 p-2 bg-[var(--bg-surface)] rounded-full hover:bg-[var(--bg-elevated)]"><i
+                        data-lucide="x" class="w-6 h-6"></i></button>
+                <div id="wrapped-slide-container"
+                    class="w-full max-w-sm transition-all duration-500 relative min-h-[400px] flex flex-col justify-center items-center">
+                </div>
+                <button id="wrapped-next-btn" onclick="Wrapped.nextSlide()"
+                    class="hidden px-10 py-4 bg-[var(--text-primary)] text-[var(--text-inverse)] rounded-full font-black uppercase tracking-widest text-sm hover:scale-105 transition shadow-xl">Next</button>
             </div>
         </div>
 
-        <!-- Changelog Modal -->
-        <div id="modal-changelog" class="hidden fixed inset-0 z-[280] bg-black overflow-y-auto">
+        <!-- === CHANGELOG === -->
+        <div id="modal-changelog" class="hidden fixed inset-0 z-[280] bg-[var(--bg-app)] overflow-y-auto">
             <div class="p-6 max-w-md mx-auto pt-20 pb-24">
                 <div class="flex justify-between items-center mb-8">
                     <h2 class="text-3xl font-black tracking-tight">Updates</h2>
-                    <button onclick="document.getElementById('modal-changelog').classList.add('hidden')" class="p-2 bg-zinc-800 rounded-full text-white"><i data-lucide="x" class="w-6 h-6"></i></button>
+                    <button onclick="document.getElementById('modal-changelog').classList.add('hidden')"
+                        class="p-2 surface rounded-full"><i data-lucide="x" class="w-6 h-6"></i></button>
                 </div>
-                <div class="space-y-12 border-l border-zinc-800 ml-2 pl-6 relative">
+                <div class="space-y-12 border-l border-[var(--border-default)] ml-2 pl-6 relative">
                     <div class="relative">
-                        <div class="absolute -left-[31px] top-0 w-4 h-4 bg-white rounded-full border-4 border-black"></div>
-                        <h3 class="text-lg font-bold text-white mb-1">Version 2.0.0</h3>
-                        <p class="text-[10px] text-zinc-500 font-mono mb-4">CURRENT RELEASE</p>
-                        <ul class="space-y-2 text-sm text-zinc-300">
-                            <li>• Advanced Media Session support (Lock screen controls)</li>
-                            <li>• Config Export/Import (.json)</li>
+                        <div
+                            class="absolute -left-[31px] top-0 w-4 h-4 bg-[var(--text-primary)] rounded-full border-4 border-[var(--bg-app)]">
+                        </div>
+                        <h3 class="text-lg font-bold mb-1" style="color: var(--text-primary);">Version 2.0</h3>
+                        <p class="text-[10px] font-mono mb-4" style="color: var(--text-tertiary);">CURRENT RELEASE</p>
+                        <ul class="space-y-2 text-sm" style="color: var(--text-secondary);">
+                            <li>• Advanced Media Session (Lockscreen)</li>
+                            <li>• Config Import/Export</li>
                             <li>• Block Artists & Dislike Songs</li>
-                            <li>• Light Mode Theme</li>
-                            <li>• Expanded Settings (Normalize, Crossfade, etc.)</li>
-                            <li>• Deep Analytics & Wrapped 2.0</li>
+                            <li>• Light Mode Overhaul</li>
+                            <li>• Gapless & Crossfade Audio</li>
                         </ul>
                     </div>
                     <div class="relative">
-                        <div class="absolute -left-[31px] top-0 w-4 h-4 bg-zinc-800 rounded-full border-4 border-black"></div>
-                        <h3 class="text-lg font-bold text-zinc-500 mb-1">Version 1.1.0</h3>
-                        <p class="text-[10px] text-zinc-700 font-mono mb-4">PREVIOUS</p>
-                        <ul class="space-y-2 text-sm text-zinc-500">
-                            <li>• Podcast Support</li>
+                        <div
+                            class="absolute -left-[31px] top-0 w-4 h-4 bg-[var(--bg-elevated)] rounded-full border-4 border-[var(--bg-app)]">
+                        </div>
+                        <h3 class="text-lg font-bold mb-1" style="color: var(--text-tertiary);">Version 1.5</h3>
+                        <p class="text-[10px] font-mono mb-4" style="color: var(--text-tertiary);">PREVIOUS</p>
+                        <ul class="space-y-2 text-sm" style="color: var(--text-tertiary);">
                             <li>• UI Fixes</li>
+                            <li>• Performance Optimizations</li>
                         </ul>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Custom Modals -->
-        <div id="ui-alert" class="custom-modal-overlay">
-            <div class="custom-modal-box text-center">
-                <h3 id="alert-title" class="text-xl font-bold mb-2">Alert</h3>
-                <p id="alert-msg" class="text-zinc-400 text-sm mb-6">Message goes here.</p>
-                <button onclick="UI.closeAlert()" class="modal-btn modal-btn-primary">OK</button>
+        <!-- === ALERTS === -->
+        <div id="ui-alert" class="modal-overlay">
+            <div class="modal-content text-center surface">
+                <h3 id="alert-title" class="text-xl font-bold mb-2" style="color: var(--text-primary);">Alert</h3>
+                <p id="alert-msg" class="text-sm mb-6" style="color: var(--text-secondary);">Message goes here.</p>
+                <button onclick="UI.closeAlert()"
+                    class="w-full py-3 bg-[var(--text-primary)] text-[var(--text-inverse)] rounded-lg font-bold uppercase text-sm">OK</button>
             </div>
         </div>
-        <div id="ui-confirm" class="custom-modal-overlay">
-            <div class="custom-modal-box text-center">
-                <h3 id="confirm-title" class="text-xl font-bold mb-2">Confirm</h3>
-                <p id="confirm-msg" class="text-zinc-400 text-sm mb-6">Are you sure?</p>
+        <div id="ui-confirm" class="modal-overlay">
+            <div class="modal-content text-center surface">
+                <h3 id="confirm-title" class="text-xl font-bold mb-2" style="color: var(--text-primary);">Confirm</h3>
+                <p id="confirm-msg" class="text-sm mb-6" style="color: var(--text-secondary);">Are you sure?</p>
                 <div class="flex gap-3">
-                    <button onclick="UI.closeConfirm()" class="modal-btn modal-btn-secondary">Cancel</button>
-                    <button id="confirm-yes-btn" class="modal-btn modal-btn-danger">Confirm</button>
+                    <button onclick="UI.closeConfirm()"
+                        class="flex-1 py-3 rounded-xl surface font-bold uppercase text-sm"
+                        style="color: var(--text-primary);">Cancel</button>
+                    <button id="confirm-yes-btn"
+                        class="flex-1 py-3 rounded-xl bg-red-500 text-white font-bold uppercase text-sm">Confirm</button>
                 </div>
             </div>
         </div>
-        <div id="ui-prompt" class="custom-modal-overlay">
-            <div class="custom-modal-box">
-                <h3 id="prompt-title" class="text-xl font-bold mb-4">Input</h3>
-                <input type="text" id="prompt-input" class="w-full bg-black border border-zinc-700 rounded-xl p-3 text-white text-sm outline-none focus:border-white mb-6" placeholder="Type here...">
+        <div id="ui-prompt" class="modal-overlay">
+            <div class="modal-content surface">
+                <h3 id="prompt-title" class="text-xl font-bold mb-4" style="color: var(--text-primary);">Input</h3>
+                <input type="text" id="prompt-input"
+                    class="w-full bg-[var(--bg-app)] rounded-xl p-3 text-sm outline-none mb-6 border border-[var(--border-subtle)]"
+                    style="color: var(--text-primary);" placeholder="Type here...">
                 <div class="flex gap-3">
-                    <button onclick="UI.closePrompt()" class="modal-btn modal-btn-secondary">Cancel</button>
-                    <button id="prompt-yes-btn" class="modal-btn modal-btn-primary">Submit</button>
+                    <button onclick="UI.closePrompt()"
+                        class="flex-1 py-3 rounded-xl surface font-bold uppercase text-sm"
+                        style="color: var(--text-primary);">Cancel</button>
+                    <button id="prompt-yes-btn"
+                        class="flex-1 py-3 rounded-xl bg-[var(--text-primary)] text-[var(--text-inverse)] font-bold uppercase text-sm">Submit</button>
                 </div>
             </div>
         </div>
-        <!-- Toast -->
-        <div id="toast" class="fixed top-6 left-1/2 -translate-x-1/2 bg-white text-black px-6 py-3 rounded-full text-xs font-bold uppercase tracking-widest shadow-2xl z-[9999] opacity-0 pointer-events-none transition-opacity duration-300">Notification</div>
-        
-        <!-- Hidden Inputs -->
+
+        <!-- === TOAST === -->
+        <div id="toast"
+            class="fixed top-6 left-1/2 -translate-x-1/2 bg-[var(--text-primary)] text-[var(--text-inverse)] px-6 py-3 rounded-full text-xs font-bold uppercase tracking-widest shadow-2xl z-[9999] opacity-0 pointer-events-none transition-opacity duration-300">
+            Notification</div>
+
+        <!-- === HIDDEN INPUTS === -->
         <input type="file" id="local-file-input" class="hidden" accept="audio/*" multiple>
     </div>
 
-    <script>
-        /**
-         * SNIPLIT v2.0 - Public Launch Candidate
-         * Vanilla JS Implementation
-         */
-
-        // --- UTILS ---
-        const Log = {
-            info: (mod, msg) => console.log(`%c[${mod}]`, 'color: #3b82f6; font-weight: bold; background: #eff6ff; padding: 2px 6px; border-radius: 4px;', msg),
-            warn: (mod, msg) => console.log(`%c[${mod}]`, 'color: #f59e0b; font-weight: bold; background: #fffbeb; padding: 2px 6px; border-radius: 4px;', msg),
-            err: (mod, msg) => console.log(`%c[${mod}]`, 'color: #ef4444; font-weight: bold; background: #fef2f2; padding: 2px 6px; border-radius: 4px;', msg),
-            success: (mod, msg) => console.log(`%c[${mod}]`, 'color: #10b981; font-weight: bold; background: #ecfdf5; padding: 2px 6px; border-radius: 4px;', msg),
-        };
-
-        const Security = {
-            escapeHtml: (unsafe) => {
-                if (typeof unsafe !== 'string') return unsafe;
-                return unsafe.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
-            },
-            // Fix for song title symbols showing code
-            safeText: (unsafe) => {
-                if (typeof unsafe !== 'string') return unsafe;
-                return unsafe.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-            },
-            unescapeHtml: (unsafe) => {
-                if(!unsafe) return '';
-                const doc = new DOMParser().parseFromString(unsafe, "text/html");
-                return doc.documentElement.textContent;
-            },
-            validateUsername: (input) => {
-                const name = input.trim().toLowerCase();
-                if (name.length < 2) return { valid: false, reason: "Name too short." };
-                if (name.length > 15) return { valid: false, reason: "Name too long." };
-                if (!/^[a-z0-9\s]*$/.test(name)) return { valid: false, reason: "Invalid characters." };
-                const banned = ['fuck', 'shit', 'bitch', 'nigger', 'fag', 'retard', 'admin', 'root']; 
-                if (banned.some(w => name.includes(w))) return { valid: false, reason: "Inappropriate name." };
-                return { valid: true, reason: "" };
-            }
-        };
-
-        const LINK_DB = {}; // Placeholder for YT DB
-
-        // --- STATE MANAGEMENT ---
-        const State = {
-            user: null,
-            preferences: { 
-                quality: true, viz: true, haptics: true, historyEnabled: true, 
-                lightMode: false, favoriteGenre: 'Pop', streamSource: 'auto',
-                normalize: true, crossfade: false, analyticsEnabled: true, allowExplicit: true
-            },
-            searchHistory: [],
-            currentTrack: null,
-            queue: [],
-            history: [],
-            favorites: [],
-            playlists: [],
-            followedArtists: [],
-            blockedArtists: [], // NEW
-            dislikedSongs: [], // NEW
-            localFiles: [],
-            isPlaying: false,
-            isLoading: false,
-            loop: 'none',
-            isShuffle: false,
-            genres: new Set(),
-            wrapped: { slide: 0, data: {} },
-            db: null,
-            isLINKMode: false,
-            analytics: { totalSecondsListened: 0, appOpens: 0, tracksPlayed: 0 },
-            viewStack: ['home'] // NEW Router Stack
-        };
-
-        // --- DATABASE (IndexedDB Wrapper) ---
-        const Database = {
-            async init() {
-                return new Promise((resolve, reject) => {
-                    const request = indexedDB.open('SniplitDB', 9); // Updated Version
-                    request.onupgradeneeded = (e) => {
-                        const db = e.target.result;
-                        if (!db.objectStoreNames.contains('settings')) db.createObjectStore('settings');
-                        if (!db.objectStoreNames.contains('playlists')) db.createObjectStore('playlists', { keyPath: 'id' });
-                        if (!db.objectStoreNames.contains('followed')) db.createObjectStore('followed', { keyPath: 'name' });
-                        if (!db.objectStoreNames.contains('analytics')) db.createObjectStore('analytics', { keyPath: 'id' });
-                        if (!db.objectStoreNames.contains('localfiles')) db.createObjectStore('localfiles', { keyPath: 'id' });
-                        // NEW STORES
-                        if (!db.objectStoreNames.contains('blocked')) db.createObjectStore('blocked');
-                        if (!db.objectStoreNames.contains('disliked')) db.createObjectStore('disliked');
-                    };
-                    request.onsuccess = (e) => {
-                        this.db = e.target.result;
-                        Log.success('DB', 'Connected v2.0');
-                        resolve();
-                    };
-                    request.onerror = () => reject();
-                });
-            },
-            async save(key, val) {
-                try {
-                    const tx = this.db.transaction('settings', 'readwrite');
-                    tx.objectStore('settings').put(val, key);
-                } catch(e) { Log.err('DB', 'Save Error'); }
-            },
-            async get(key) {
-                return new Promise(res => {
-                    const tx = this.db.transaction('settings', 'readonly');
-                    const req = tx.objectStore('settings').get(key);
-                    req.onsuccess = () => res(req.result);
-                    req.onerror = () => res(null);
-                });
-            },
-            async savePlaylists(lists) {
-                const tx = this.db.transaction('playlists', 'readwrite');
-                const store = tx.objectStore('playlists');
-                store.clear(); lists.forEach(l => store.put(l));
-            },
-            async getPlaylists() {
-                 return new Promise(res => {
-                    const tx = this.db.transaction('playlists', 'readonly');
-                    const req = tx.objectStore('playlists').getAll();
-                    req.onsuccess = () => res(req.result || []);
-                });
-            },
-            // Generic save/get for lists
-            async saveList(storeName, list) {
-                const tx = this.db.transaction(storeName, 'readwrite');
-                const store = tx.objectStore(storeName);
-                store.clear(); list.forEach(item => store.put(item));
-            },
-            async getList(storeName) {
-                 return new Promise(res => {
-                    const tx = this.db.transaction(storeName, 'readonly');
-                    const req = tx.objectStore(storeName).getAll();
-                    req.onsuccess = () => res(req.result || []);
-                });
-            },
-            async hardReset() {
-                UI.triggerConfirm("Factory Reset", "Wipe all data?", async () => {
-                    localStorage.clear();
-                    const req = indexedDB.deleteDatabase('SniplitDB');
-                    req.onsuccess = () => location.reload();
-                });
-            },
-            async clearSearchHistory() {
-                State.searchHistory = [];
-                await this.save('search_history', []);
-                UI.renderSearchHistory();
-            }
-        };
-
-        // --- ROUTER (Fixed Back Button Logic) ---
-        const Router = {
-            historyStack: [],
-            go(viewId, params = null) {
-                // Push current view to stack if not modal
-                const current = document.querySelector('.view-section:not(.hidden)');
-                if(current && current.id !== `view-${viewId}`) {
-                    this.historyStack.push({ id: current.id.replace('view-', ''), params: State.currentContextParams });
-                }
-                this.switch(viewId, params);
-            },
-            back() {
-                if(this.historyStack.length > 0) {
-                    const prev = this.historyStack.pop();
-                    this.switch(prev.id, prev.params);
-                } else {
-                    this.switch('home');
-                }
-            },
-            switch(viewId, params = null) {
-                State.currentContextParams = params;
-                document.querySelectorAll('.view-section').forEach(el => el.classList.add('hidden'));
-                const target = document.getElementById(`view-${viewId}`);
-                if(target) target.classList.remove('hidden');
-                
-                // Nav Bar Active State
-                document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-                if(['home','search','library'].includes(viewId)) {
-                    const btn = document.querySelector(`.nav-btn[data-view="${viewId}"]`);
-                    if(btn) btn.classList.add('active');
-                }
-
-                // Queue hide
-                const q = document.getElementById('view-queue');
-                if(q) q.classList.add('hidden');
-
-                if(viewId === 'home') UI.loadHomeData();
-                if(viewId === 'library') UI.renderLibrary();
-            }
-        };
-
-        // --- DATA MANAGER (Config Import/Export) ---
-        const DataManager = {
-            exportConfig() {
-                const data = {
-                    user: State.user,
-                    preferences: State.preferences,
-                    favorites: State.favorites,
-                    playlists: State.playlists,
-                    followedArtists: State.followedArtists,
-                    blockedArtists: State.blockedArtists,
-                    exportedAt: new Date().toISOString()
-                };
-                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `sniplit-backup-${Date.now()}.json`;
-                a.click();
-                UI.toast("Config Exported");
-            },
-            importConfig(input) {
-                const file = input.files[0];
-                if(!file) return;
-                const reader = new FileReader();
-                reader.onload = async (e) => {
-                    try {
-                        const data = JSON.parse(e.target.result);
-                        if(data.user) State.user = data.user;
-                        if(data.preferences) State.preferences = data.preferences;
-                        if(data.favorites) State.favorites = data.favorites;
-                        if(data.playlists) State.playlists = data.playlists;
-                        if(data.followedArtists) State.followedArtists = data.followedArtists;
-                        if(data.blockedArtists) State.blockedArtists = data.blockedArtists;
-                        
-                        // Save to DB
-                        await Database.save('user_name', State.user);
-                        await Database.save('preferences', State.preferences);
-                        await Database.savePlaylists(State.playlists);
-                        await Database.saveList('followed', State.followedArtists);
-                        await Database.saveList('blocked', State.blockedArtists);
-                        
-                        UI.toast("Import Successful");
-                        setTimeout(() => location.reload(), 1000);
-                    } catch(err) {
-                        UI.triggerAlert("Error", "Invalid JSON file");
-                    }
-                };
-                reader.readAsText(file);
-            }
-        };
-
-        // --- YOUTUBE ENGINE ---
-        const LINKEngine = {
-            player: null,
-            isReady: false,
-            init() {
-                if (!window.YT) {
-                    const tag = document.createElement('script');
-                    tag.src = "https://www.youtube.com/iframe_api";
-                    const firstScriptTag = document.getElementsByTagName('script')[0];
-                    firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
-                    window.onYouTubeIframeAPIReady = () => {
-                        this.createPlayer();
-                        this.isReady = true;
-                        Log.info('YT', 'Ready');
-                    };
-                }
-            },
-            createPlayer() {
-                let container = document.getElementById('yt-audio-container');
-                if(!container) {
-                    container = document.createElement('div');
-                    container.id = 'yt-audio-container';
-                    container.style.cssText = 'position:fixed; top:-9999px; left:-9999px; width:1px; height:1px; opacity:0; pointer-events:none;';
-                    document.body.appendChild(container);
-                }
-                this.player = new YT.Player('yt-audio-container', {
-                    height: '200', width: '200', videoId: '',
-                    playerVars: { 'playsinline': 1, 'controls': 0, 'disablekb': 1 },
-                    events: {
-                        'onStateChange': (e) => {
-                            if (e.data === YT.PlayerState.ENDED) Queue.next();
-                        }
-                    }
-                });
-            },
-            loadVideo(videoId) {
-                if (!this.isReady || !this.player) return false;
-                State.isLINKMode = true;
-                State.isLoading = true;
-                this.player.loadVideoById(videoId);
-                this.player.setVolume(100);
-                this.player.unMute();
-                return true;
-            },
-            play() { if(this.player) this.player.playVideo(); },
-            pause() { if(this.player) this.player.pauseVideo(); },
-            seekTo(seconds) { if(this.player) this.player.seekTo(seconds, true); },
-            getTime() { return this.player ? this.player.getCurrentTime() : 0; },
-            getDuration() { return this.player ? this.player.getDuration() : 0; }
-        };
-
-        // --- AUDIO ENGINE ---
-        const AudioEngine = {
-            el: new Audio(),
-            ctx: null,
-            analyser: null,
-            source: null,
-
-            init() {
-                this.el.crossOrigin = "anonymous";
-                this.el.addEventListener('loadstart', () => { State.isLoading = true; UI.updateMiniPlayerState(); });
-                this.el.addEventListener('canplay', () => { State.isLoading = false; UI.updateMiniPlayerState(); });
-                this.el.addEventListener('timeupdate', () => { if(!State.isLINKMode) this.onTimeUpdate(); });
-                this.el.addEventListener('ended', () => { if(!State.isLINKMode) Queue.next(); });
-                this.el.addEventListener('play', () => {
-                    if(State.isLINKMode) return;
-                    State.isPlaying = true; State.isLoading = false;
-                    UI.updatePlaybackState(); UI.updateMiniPlayerState();
-                    if(!this.ctx) this.initAudioContext();
-                });
-                this.el.addEventListener('pause', () => {
-                    if(State.isLINKMode) return;
-                    State.isPlaying = false;
-                    UI.updatePlaybackState(); UI.updateMiniPlayerState();
-                });
-                
-                // Polling for YT + Mini Player updates
-                setInterval(() => {
-                    UI.updateMiniPlayerState();
-                    if(State.isPlaying && State.isLINKMode && LINKEngine.player && LINKEngine.player.getCurrentTime) {
-                        this.onTimeUpdate(LINKEngine.player.getCurrentTime(), LINKEngine.player.getDuration());
-                        LyricsEngine.sync();
-                    }
-                }, 300);
-                
-                Log.success('Audio', 'Engine Init');
-                LINKEngine.init();
-            },
-
-            initAudioContext() {
-                try {
-                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
-                    this.analyser = this.ctx.createAnalyser();
-                    this.analyser.fftSize = 2048;
-                    this.source = this.ctx.createMediaElementSource(this.el);
-                    this.source.connect(this.analyser);
-                    this.analyser.connect(this.ctx.destination);
-                } catch(e) { Log.warn('Audio', 'Web Audio API not supported'); }
-            },
-
-            load(track, autoplay = true) {
-                if(!track) return;
-                State.currentTrack = track;
-                State.isLoading = true;
-
-                // Check Blocked Artists
-                if(State.blockedArtists.includes(track.artistName)) {
-                    UI.toast("Artist Blocked. Skipping...");
-                    Queue.next();
-                    return;
-                }
-
-                const key = this.normalizeKey(`${track.artistName} ${track.trackName}`);
-                const ytData = LINK_DB[key];
-                State.isLINKMode = false;
-                this.el.pause();
-
-                // Logic for Source Preference
-                const pref = State.preferences.streamSource;
-
-                if ((pref === 'auto' || pref === 'yt') && ytData) {
-                    if (LINKEngine.isReady) {
-                        LINKEngine.loadVideo(ytData.v);
-                        State.isPlaying = true;
-                        UI.updatePlaybackState(); UI.updateMiniPlayerState();
-                        this.postLoadProcess(track);
-                        return;
-                    }
-                }
-
-                // Fallback to iTunes
-                this.el.src = track.previewUrl || track.localUrl;
-                if(autoplay) this.el.play().catch(e => Log.warn('Audio', 'Autoplay blocked'));
-                this.postLoadProcess(track);
-            },
-
-            postLoadProcess(track) {
-                State.history.unshift(track);
-                // Dedupe history
-                const uniqueHistory = Array.from(new Set(State.history.map(a => a.trackId)))
-                    .map(id => State.history.find(a => a.trackId === id))
-                    .slice(0, 200);
-                State.history = uniqueHistory;
-                Database.save('history', uniqueHistory);
-
-                if(track.primaryGenreName) State.genres.add(track.primaryGenreName);
-                
-                UI.updatePlayerUI();
-                LyricsEngine.fetch(track);
-                this.updateMediaSession();
-            },
-
-            normalizeKey(str) {
-                return str.toLowerCase().replace(/[^\w\s]/gi, '').replace(/\s+/g, ' ').trim();
-            },
-
-            toggle() {
-                if(State.isLINKMode) { State.isPlaying ? LINKEngine.pause() : LINKEngine.play(); }
-                else { if(!this.el.src) return; this.el.paused ? this.el.play() : this.el.pause(); }
-                State.isPlaying = !State.isPlaying;
-                UI.updatePlaybackState(); UI.updateMiniPlayerState();
-                if(State.preferences.haptics && navigator.vibrate) navigator.vibrate(20);
-                this.updateMediaSession();
-            },
-
-            seek(val) {
-                const duration = State.isLINKMode ? LINKEngine.getDuration() : this.el.duration;
-                if(!duration) return;
-                const time = (val / 100) * duration;
-                if(State.isLINKMode) LINKEngine.seekTo(time); else this.el.currentTime = time;
-            },
-
-            onTimeUpdate(curTime = null, durTime = null) {
-                const currentTime = curTime !== null ? curTime : this.el.currentTime;
-                const duration = durTime !== null ? durTime : this.el.duration;
-                if(!duration) return;
-                const pct = (currentTime / duration) * 100;
-                
-                const slider = document.getElementById('player-progress');
-                if(slider) slider.value = pct || 0;
-                const miniBar = document.getElementById('mini-progress');
-                if(miniBar) miniBar.style.width = `${pct || 0}%`;
-                
-                const curEl = document.getElementById('time-cur');
-                const totEl = document.getElementById('time-total');
-                if(curEl) curEl.innerText = this.formatTime(currentTime);
-                if(totEl) totEl.innerText = this.formatTime(duration);
-
-                if ('mediaSession' in navigator && State.isPlaying) {
-                    try {
-                        navigator.mediaSession.setPositionState({ duration: duration, playbackRate: 1, position: currentTime });
-                    } catch(e) {}
-                }
-            },
-
-            formatTime(s) {
-                if(!s || isNaN(s)) return "0:00";
-                const m = Math.floor(s/60);
-                const r = Math.floor(s%60);
-                return `${m}:${r < 10 ? '0' : ''}${r}`;
-            },
-
-            updateMediaSession() {
-                if ('mediaSession' in navigator && State.currentTrack) {
-                    navigator.mediaSession.metadata = new MediaMetadata({
-                        title: Security.unescapeHtml(State.currentTrack.trackName),
-                        artist: Security.unescapeHtml(State.currentTrack.artistName),
-                        album: Security.unescapeHtml(State.currentTrack.collectionName),
-                        artwork: [{ src: State.currentTrack.artworkUrl100.replace('100x100', '600x600'), sizes: '600x600', type: 'image/jpeg' }]
-                    });
-
-                    const actionHandlers = {
-                        play: () => { this.el.play(); LINKEngine.play(); State.isPlaying=true; UI.updatePlaybackState(); },
-                        pause: () => { this.el.pause(); LINKEngine.pause(); State.isPlaying=false; UI.updatePlaybackState(); },
-                        previoustrack: () => Queue.prev(),
-                        nexttrack: () => Queue.next(),
-                        seekto: (details) => {
-                            if (details.seekTime !== undefined) {
-                                const duration = State.isLINKMode ? LINKEngine.getDuration() : this.el.duration;
-                                const time = details.seekTime;
-                                this.el.currentTime = time; LINKEngine.seekTo(time);
-                                this.onTimeUpdate(time, duration);
-                            }
-                        }
-                    };
-                    for (const [action, handler] of Object.entries(actionHandlers)) {
-                        try { navigator.mediaSession.setActionHandler(action, handler); } catch (e) {}
-                    }
-                }
-            }
-        };
-
-        // --- LYRICS ENGINE ---
-        const LyricsEngine = {
-            lines: [],
-            userScrolling: false,
-            scrollTimeout: null,
-            async fetch(track) {
-                const container = document.getElementById('lyrics-panel');
-                if(container) {
-                    container.innerHTML = '<div class="flex flex-col items-center justify-center h-full py-20 opacity-50"><div class="w-6 h-6 border-2 border-white/20 border-t-white rounded-full animate-spin mb-4"></div></div>';
-                    container.style.display = 'flex'; // Show container with loading
-                }
-                this.lines = [];
-                try {
-                    const res = await fetch(`https://lrclib.net/api/get?artist_name=${encodeURIComponent(track.artistName)}&track_name=${encodeURIComponent(track.trackName)}`);
-                    if(!res.ok) throw new Error("API Error");
-                    const data = await res.json();
-                    if (data && data.syncedLyrics) this.parseSynced(data.syncedLyrics);
-                    else if (data && data.plainLyrics) this.parsePlain(data.plainLyrics);
-                    else throw new Error("No lyrics");
-                } catch (e) {
-                    if(container) {
-                        container.innerHTML = '<div class="flex flex-col items-center justify-center h-full"><p class="text-zinc-600 text-xs font-bold uppercase">Instrumental / No Lyrics</p></div>';
-                    }
-                }
-            },
-            parseSynced(text) {
-                this.lines = text.split('\n').map(line => {
-                    const match = line.match(/^\[(\d{2}):(\d{2}\.\d{2})\](.*)/);
-                    if (match) return { time: parseInt(match[1])*60 + parseFloat(match[2]), text: match[3].trim() };
-                    return null;
-                }).filter(l => l);
-                this.render();
-            },
-            parsePlain(text) {
-                this.lines = text.split('\n').map((l, i) => ({ text: l, time: null }));
-                this.render();
-            },
-            render() {
-                const container = document.getElementById('lyrics-panel');
-                if(!container) return;
-                container.innerHTML = this.lines.map((l, i) => `<div id="lyric-${i}" class="lyric-line" onclick="AudioEngine.seekByLyric(${l.time})">${l.text}</div>`).join('');
-            },
-            sync() {
-                if (this.lines.length === 0 || !State.isPlaying || this.userScrolling) return;
-                const curTime = State.isLINKMode ? LINKEngine.getTime() : AudioEngine.el.currentTime;
-                let activeIdx = -1;
-                if (this.lines[0].time !== null) {
-                    activeIdx = this.lines.findIndex((l, i) => curTime >= l.time && (i === this.lines.length - 1 || curTime < this.lines[i+1].time));
-                }
-                document.querySelectorAll('.lyric-line').forEach(el => el.classList.remove('active'));
-                if (activeIdx !== -1) {
-                    const el = document.getElementById(`lyric-${activeIdx}`);
-                    if(el) {
-                        el.classList.add('active');
-                        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    }
-                }
-            }
-        };
-
-        // --- QUEUE ---
-        const Queue = {
-            index: -1,
-            set(list, startIdx = 0) {
-                if(!list || list.length === 0) return;
-                State.queue = [...list];
-                this.index = startIdx;
-                AudioEngine.load(State.queue[this.index]);
-                UI.renderQueuePage();
-            },
-            add(track) {
-                State.queue.push(track);
-                UI.toast("Added to Queue");
-                UI.renderQueuePage();
-            },
-            next() {
-                if (State.loop === 'one') {
-                    AudioEngine.el.currentTime = 0; LINKEngine.seekTo(0);
-                    return;
-                }
-                this.index++;
-                if (this.index >= State.queue.length) {
-                    this.smartRadio();
-                    return;
-                }
-                AudioEngine.load(State.queue[this.index]);
-            },
-            prev() {
-                const curTime = State.isLINKMode ? LINKEngine.getTime() : AudioEngine.el.currentTime;
-                if (curTime > 3) {
-                    if(State.isLINKMode) LINKEngine.seekTo(0); else AudioEngine.el.currentTime = 0;
-                    return;
-                }
-                this.index--;
-                if (this.index < 0) this.index = State.queue.length - 1;
-                AudioEngine.load(State.queue[this.index]);
-                AudioEngine.updateMediaSession();
-            },
-            toggleLoop() {
-                const modes = ['none', 'one', 'all'];
-                State.loop = modes[(modes.indexOf(State.loop) + 1) % modes.length];
-                const btn = document.getElementById('loop-btn');
-                if(btn) {
-                    btn.className = State.loop !== 'none' ? 'text-white p-2' : 'text-zinc-600 p-2';
-                    btn.innerHTML = `<i data-lucide="repeat${State.loop === 'one' ? '-1' : ''}" class="w-5 h-5"></i>`;
-                }
-                UI.toast(`Loop: ${State.loop}`);
-            },
-            toggleShuffle() {
-                State.isShuffle = !State.isShuffle;
-                const btn = document.getElementById('shuffle-btn');
-                if(btn) btn.className = State.isShuffle ? 'text-white p-2' : 'text-zinc-600 p-2';
-                UI.toast(`Shuffle: ${State.isShuffle ? 'On' : 'Off'}`);
-            },
-            async smartRadio() {
-                if (!State.currentTrack) return;
-                let candidates = [];
-                const favGenre = State.preferences.favoriteGenre || 'Pop';
-                const searchTerm = `${favGenre} 2024 hits`;
-                Log.info('Queue', `Searching Radio: ${searchTerm}`);
-                const results = await API.search(searchTerm);
-                const knownIds = new Set([...State.queue, ...State.history].map(t => t.trackId));
-                // Filter blocked artists
-                candidates = results.filter(t => !knownIds.has(t.trackId) && !State.blockedArtists.includes(t.artistName));
-
-                if (candidates.length > 0) {
-                    State.queue.push(...candidates.slice(0, 5));
-                    UI.toast("Smart Radio: Adding Songs");
-                    this.next();
-                } else {
-                    UI.toast("Radio exhausted");
-                    State.loop = 'all';
-                    this.index = 0;
-                    AudioEngine.load(State.queue[0]);
-                }
-            }
-        };
-
-        // --- API ---
-        const API = {
-            async search(query, entity = 'music') {
-                try {
-                    const res = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(query)}&media=${entity}&limit=30`);
-                    const data = await res.json();
-                    return data.results;
-                } catch(e) { return []; }
-            },
-            async getArtistDiscography(id) {
-                try {
-                    const res = await fetch(`https://itunes.apple.com/lookup?id=${id}&entity=album&limit=10`);
-                    const data = await res.json();
-                    return data.results;
-                } catch(e) { return []; }
-            },
-            async getAlbumTracks(collectionId) {
-                try {
-                    const res = await fetch(`https://itunes.apple.com/lookup?id=${collectionId}&entity=song`);
-                    const data = await res.json();
-                    return data.results.slice(1);
-                } catch (e) { return []; }
-            },
-            async getConcerts(artist) {
-                // Mocking concert data as public free APIs for this are scarce or need keys.
-                // In a real app, integrate Songkick or Bandsintown.
-                return {
-                    artist: artist,
-                    events: [
-                        { date: "Oct 24", city: "New York", venue: "Madison Square Garden" },
-                        { date: "Nov 02", city: "London", venue: "O2 Arena" }
-                    ]
-                };
-            }
-        };
-
-        // --- LIBRARY ACTIONS ---
-        const Library = {
-            async toggleLike() {
-                if (!State.currentTrack) return;
-                const idx = State.favorites.findIndex(t => t.trackId === State.currentTrack.trackId);
-                if (idx > -1) {
-                    State.favorites.splice(idx, 1);
-                    UI.toast("Removed from Favorites");
-                } else {
-                    State.favorites.push(State.currentTrack);
-                    UI.toast("Liked Song");
-                }
-                await Database.saveList('favorites', State.favorites); // Saving to generic list store for simplicity
-                Database.save('favorites', State.favorites); // Keep legacy key
-                UI.updatePlayerUI();
-                UI.renderLibrary();
-            },
-            createPlaylist(name) {
-                if(!name) return;
-                const newPl = { id: 'pl-' + Date.now(), name: name, tracks: [], image: null };
-                State.playlists.push(newPl);
-                Database.savePlaylists(State.playlists);
-                UI.renderLibrary();
-                UI.toast(`Created ${name}`);
-            },
-            async addToPlaylist(playlistId) {
-                if(!State.currentTrack) return;
-                const pl = State.playlists.find(p => p.id === playlistId);
-                if(pl) {
-                    pl.tracks.push(State.currentTrack);
-                    await Database.savePlaylists(State.playlists);
-                    UI.toast(`Added to ${pl.name}`);
-                    document.getElementById('modal-add-playlist').classList.add('hidden');
-                }
-            },
-            async deletePlaylist(id) {
-                UI.triggerConfirm("Delete Playlist", "Are you sure?", async () => {
-                    State.playlists = State.playlists.filter(p => p.id !== id);
-                    await Database.savePlaylists(State.playlists);
-                    Router.back();
-                    UI.toast("Playlist Deleted");
-                });
-            },
-             async removeFromPlaylist(playlistId, trackId) {
-                const pl = State.playlists.find(p => p.id === playlistId);
-                if(pl) {
-                    pl.tracks = pl.tracks.filter(t => t.trackId !== trackId);
-                    await Database.savePlaylists(State.playlists);
-                    UI.renderListGeneric('playlist', pl); // Re-render
-                }
-            }
-        };
-
-        // --- LOCAL FILES ---
-        const LocalFiles = {
-            triggerFile() { 
-                const el = document.getElementById('local-file-input');
-                if(el) el.click(); 
-            },
-            init() {
-                const handleFiles = (files) => {
-                     const validFiles = Array.from(files); 
-                     if(validFiles.length === 0) { UI.toast("No Files Selected"); return; }
-                     const newTracks = validFiles.map(f => {
-                        const name = f.name;
-                        const url = URL.createObjectURL(f);
-                        return {
-                            id: `local-${Date.now()}-${Math.random()}`, trackId: `local-${Date.now()}`,
-                            trackName: name.replace(/\.[^/.]+$/, ""), artistName: "Local Import",
-                            collectionName: "Imported", artworkUrl100: "https://picsum.photos/seed/"+name+"/100/100", 
-                            previewUrl: url, localUrl: url, isLocal: true
-                        };
-                    });
-                    State.localFiles = [...State.localFiles, ...newTracks];
-                    Database.saveList('localfiles', State.localFiles);
-                    Queue.set(newTracks);
-                    UI.togglePlayer(true);
-                    UI.toggleQueue(true);
-                    UI.toast(`Imported ${newTracks.length} files`);
-                };
-                const fileInput = document.getElementById('local-file-input');
-                if(fileInput) fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
-            }
-        };
-
-        // --- WRAPPED ANALYTICS ---
-        const Wrapped = {
-            calculate() {
-                const history = State.history;
-                if (!history || history.length < 5) {
-                    UI.toast("Need more listening history");
-                    return false;
-                }
-                const topArtists = {}; const topGenres = {};
-                let totalMs = 0;
-                history.forEach(t => {
-                    if(!topArtists[t.artistName]) topArtists[t.artistName] = 0; topArtists[t.artistName]++;
-                    if(t.primaryGenreName) { if(!topGenres[t.primaryGenreName]) topGenres[t.primaryGenreName] = 0; topGenres[t.primaryGenreName]++; }
-                    totalMs += (t.trackTimeMillis || 180000); 
-                });
-                
-                // Calculate "Age" based on genres (Heuristic)
-                let score = 0;
-                if(topGenres['Pop']) score += 16;
-                if(topGenres['Rock']) score += 30;
-                if(topGenres['Hip-Hop']) score += 22;
-                if(topGenres['Alternative']) score += 20;
-                
-                State.wrapped.data = {
-                    totalHours: (totalMs / (1000*60*60)).toFixed(1),
-                    topArtists: Object.entries(topArtists).sort((a,b) => b[1] - a[1]).slice(0, 3).map(x => x[0]),
-                    topGenres: Object.entries(topGenres).sort((a,b) => b[1] - a[1]).slice(0, 3).map(x => x[0]),
-                    trackCount: history.length,
-                    estimatedAge: 16 + (score / 2)
-                };
-                return true;
-            },
-            renderSlide() {
-                const container = document.getElementById('wrapped-slide-container');
-                if(!container) return;
-                const data = State.wrapped.data;
-                const slide = State.wrapped.slide;
-                let html = '';
-                if (slide === 0) {
-                    html = `<div class="slide-enter space-y-4"><h1 class="text-6xl font-black text-transparent bg-clip-text bg-gradient-to-br from-white to-zinc-600">2025<br>WRAPPED</h1><p class="text-zinc-400 font-mono tracking-widest text-xs uppercase">Your Sonic Identity</p></div>`;
-                } else if (slide === 1) {
-                    html = `<div class="slide-enter space-y-2"><p class="text-zinc-500 uppercase text-xs font-bold tracking-widest">Total Airtime</p><h2 class="text-8xl font-black text-white tracking-tighter">${data.totalHours}<span class="text-2xl text-zinc-600 ml-2">HRS</span></h2></div>`;
-                } else if (slide === 2) {
-                    html = `<div class="slide-enter space-y-8 w-full"><p class="text-zinc-500 uppercase text-xs font-bold tracking-widest">Top Artists</p><div class="space-y-6">
-                        <h3 class="text-4xl font-black text-white">${data.topArtists[0] || 'Unknown'}</h3>
-                        <h3 class="text-2xl font-bold text-zinc-400">${data.topArtists[1] || ''}</h3>
-                        <h3 class="text-xl font-bold text-zinc-600">${data.topArtists[2] || ''}</h3>
-                    </div></div>`;
-                } else if (slide === 3) {
-                    html = `<div class="slide-enter space-y-2"><p class="text-zinc-500 uppercase text-xs font-bold tracking-widest">Music Age</p><h2 class="text-8xl font-black text-white tracking-tighter">${Math.floor(data.estimatedAge)}<span class="text-2xl text-zinc-600 ml-2">YRS</span></h2><p class="text-zinc-500 text-sm">Based on listening habits</p></div>`;
-                } else if (slide === 4) {
-                     html = `<div class="slide-enter space-y-6"><h1 class="text-4xl font-black text-white">The End.</h1><p class="text-zinc-500 font-mono text-xs uppercase">Keep Listening.</p></div>`;
-                     const btn = document.getElementById('wrapped-next-btn');
-                     if(btn) { btn.innerText = "Close"; btn.onclick = () => document.getElementById('wrapped-modal').classList.add('hidden'); }
-                }
-                container.innerHTML = html;
-                const btn = document.getElementById('wrapped-next-btn');
-                if(btn) btn.classList.remove('hidden');
-            },
-            nextSlide() {
-                if(State.wrapped.slide < 4) { State.wrapped.slide++; this.renderSlide(); }
-            }
-        };
-
-        // --- UI MANAGER ---
-        const UI = {
-            searchMode: 'all', // all, podcast
-
-            async init() {
-                await Database.init();
-                const loggedIn = await Onboarding.check();
-                if(!loggedIn) {
-                    document.getElementById('splash-screen').style.display = 'none';
-                    return;
-                }
-
-                this.checkAnnouncements();
-                LocalFiles.init();
-                
-                // Time
-                setInterval(() => {
-                    const now = new Date();
-                    const timeEl = document.getElementById('system-time');
-                    if(timeEl) timeEl.innerText = now.getHours() + ":" + (now.getMinutes() < 10 ? '0' : '') + now.getMinutes();
-                }, 1000);
-
-                // Search Debounce
-                const searchInput = document.getElementById('main-search');
-                if(searchInput) {
-                    searchInput.addEventListener('input', debounce(async (e) => {
-                        if (e.target.value.length < 2) return;
-                        const entity = this.searchMode === 'podcast' ? 'podcast' : 'music';
-                        const results = await API.search(e.target.value, entity);
-                        this.renderSearchResults(results);
-                    }, 500));
-                }
-
-                await this.initData();
-            },
-
-            checkAnnouncements() {
-                const lastSeen = localStorage.getItem('sniplit_changelog_seen');
-                if (!lastSeen || lastSeen !== 'v2') {
-                    // Show notification dot (handled in CSS)
-                }
-            },
-
-            async initData() {
-                // Load Preferences
-                const savedPrefs = await Database.get('preferences');
-                if(savedPrefs) { State.preferences = { ...State.preferences, ...savedPrefs }; }
-                if(State.preferences.lightMode) document.body.classList.add('light-mode');
-
-                // Load Lists
-                State.user = await Database.get('user_name');
-                State.favorites = await Database.get('favorites') || [];
-                State.playlists = await Database.getPlaylists() || [];
-                State.followedArtists = await Database.getList('followed') || [];
-                State.blockedArtists = await Database.getList('blocked') || [];
-                State.localFiles = await Database.getList('localfiles') || [];
-                State.history = await Database.get('history') || [];
-                State.searchHistory = await Database.get('search_history') || [];
-
-                // Greeting
-                const greetingEl = document.getElementById('greeting');
-                if(greetingEl) greetingEl.innerText = `Hi, ${State.user}`;
-
-                AudioEngine.init();
-                this.initVisualizer();
-                if(window.lucide) lucide.createIcons();
-                
-                this.loadHomeData();
-
-                const splash = document.getElementById('splash-screen');
-                if(splash) {
-                    splash.style.opacity = '0';
-                    setTimeout(() => splash.style.display = 'none', 800);
-                }
-            },
-
-            // --- NAVIGATION ---
-            toggleView(id) { Router.go(id); },
-            back() { Router.back(); },
-
-            // --- HOME & DISCOVERY ---
-            async loadHomeData() {
-                // Recents
-                const recentsGrid = document.getElementById('recents-grid');
-                if(recentsGrid) {
-                    recentsGrid.innerHTML = '';
-                    // Unique Recents
-                    const uniqueHistory = Array.from(new Set(State.history.map(a => a.trackId)))
-                        .map(id => State.history.find(a => a.trackId === id)).slice(0, 4);
-                    
-                    uniqueHistory.forEach(t => {
-                        recentsGrid.innerHTML += `
-                            <div class="flex items-center gap-3 bg-zinc-900/50 p-2.5 rounded-xl border border-white/5 hover:bg-white/10 transition cursor-pointer" onclick="Queue.set([${this.esc(t)}])">
-                                <img src="${t.artworkUrl100}" class="w-10 h-10 rounded-lg object-cover shadow-sm">
-                                <div class="min-w-0 flex-1">
-                                    <p class="text-[11px] font-bold text-white truncate">${Security.unescapeHtml(t.trackName)}</p>
-                                    <p class="text-[9px] text-zinc-500 font-bold uppercase truncate">${Security.unescapeHtml(t.artistName)}</p>
-                                </div>
-                            </div>`;
-                    });
-                }
-
-                // Discovery
-                this.discoverType('daily');
-                
-                // Concerts (Mock)
-                const concertsList = document.getElementById('concerts-list');
-                if(concertsList && State.followedArtists.length > 0) {
-                    const artist = State.followedArtists[0].name;
-                    const data = await API.getConcerts(artist);
-                    concertsList.innerHTML = `
-                        <div class="bg-zinc-900/50 p-4 rounded-xl border border-white/5">
-                            <div class="flex justify-between items-center mb-2">
-                                <span class="font-bold text-white text-sm">${artist}</span>
-                                <span class="text-[10px] text-green-400 uppercase font-bold">On Tour</span>
-                            </div>
-                            <div class="flex gap-2 overflow-x-auto no-scrollbar">
-                                ${data.events.map(e => `
-                                    <div class="bg-zinc-800 rounded-lg px-3 py-2 min-w-[100px]">
-                                        <p class="text-[10px] text-zinc-400 uppercase">${e.date}</p>
-                                        <p class="text-xs font-bold text-white truncate">${e.city}</p>
-                                    </div>
-                                `).join('')}
-                            </div>
-                        </div>
-                    `;
-                } else {
-                    concertsList.innerHTML = `<p class="text-xs text-zinc-600 italic">Follow artists to see events.</p>`;
-                }
-            },
-
-            async discoverType(type) {
-                // Update tabs
-                document.querySelectorAll('#view-home button[onclick^="UI.discoverType"]').forEach(b => b.className = "px-4 py-1.5 bg-zinc-800 text-zinc-400 text-[10px] font-bold uppercase rounded-full whitespace-nowrap transition hover:bg-white/10 hover:text-white");
-                const activeBtn = document.getElementById(`tab-${type}`);
-                if(activeBtn) activeBtn.className = "px-4 py-1.5 bg-white text-black text-[10px] font-bold uppercase rounded-full whitespace-nowrap transition";
-
-                const grid = document.getElementById('for-you-grid');
-                if(!grid) return;
-
-                grid.innerHTML = '<div class="w-full flex justify-center py-10"><div class="skeleton w-32 h-32 rounded-xl"></div></div>';
-
-                let query = "trending";
-                if(type === 'daily') query = State.preferences.favoriteGenre || "pop hits 2024";
-                if(type === 'radio') query = "radio hits 2024";
-                if(type === 'discover') query = "indie electronic discovery";
-
-                const results = await API.search(query);
-                
-                // Filter for uniqueness and blocked artists
-                const uniqueResults = [];
-                const seen = new Set();
-                
-                results.forEach(t => {
-                    if(seen.has(t.trackId)) return;
-                    if(State.blockedArtists.includes(t.artistName)) return;
-                    seen.add(t.trackId);
-                    uniqueResults.push(t);
-                });
-
-                // Shuffle slightly to avoid same artist pattern
-                uniqueResults.sort(() => Math.random() - 0.5);
-
-                grid.innerHTML = '';
-                uniqueResults.slice(0, 8).forEach(t => {
-                    grid.innerHTML += `
-                        <div class="flex-shrink-0 w-32 space-y-2 cursor-pointer group snap-start" onclick="Queue.set([${this.esc(t)}])">
-                            <div class="relative overflow-hidden rounded-xl aspect-square">
-                                <img src="${t.artworkUrl100.replace('100x100', '400x400')}" class="w-full h-full object-cover bg-zinc-900 border border-white/5 group-hover:scale-105 transition duration-500">
-                            </div>
-                            <div class="px-1">
-                                <p class="text-[11px] font-bold text-white truncate">${Security.unescapeHtml(t.trackName)}</p>
-                                <p class="text-[9px] text-zinc-500 font-bold uppercase truncate">${Security.unescapeHtml(t.artistName)}</p>
-                            </div>
-                        </div>`;
-                });
-            },
-
-            // --- SEARCH ---
-            setSearchMode(mode) {
-                this.searchMode = mode;
-                document.querySelectorAll('.search-mode-btn').forEach(b => {
-                    b.className = b.innerText.toLowerCase().includes(mode) ? "search-mode-btn active px-3 py-1 bg-white text-black text-[10px] font-bold uppercase rounded-lg" : "search-mode-btn px-3 py-1 bg-zinc-800 text-zinc-400 text-[10px] font-bold uppercase rounded-lg hover:bg-zinc-700";
-                });
-                // Trigger search if input has value
-                const input = document.getElementById('main-search');
-                if(input.value) input.dispatchEvent(new Event('input'));
-            },
-
-            renderSearchResults(results) {
-                document.getElementById('search-history-panel').classList.add('hidden');
-                const container = document.getElementById('search-results');
-                if(!container) return;
-                container.innerHTML = '';
-                
-                // Dedupe
-                const unique = [];
-                const ids = new Set();
-                results.forEach(t => {
-                    if(!ids.has(t.trackId) && !State.blockedArtists.includes(t.artistName)) {
-                        ids.add(t.trackId); unique.push(t);
-                    }
-                });
-
-                if(unique.length === 0) {
-                    container.innerHTML = '<p class="text-center text-zinc-600 text-xs py-10">No results found</p>';
-                    return;
-                }
-
-                unique.forEach(t => {
-                    const isPodcast = this.searchMode === 'podcast';
-                    const subText = isPodcast ? (t.artistName || 'Podcast') : t.artistName;
-                    container.innerHTML += `
-                        <div class="flex items-center gap-4 p-3 rounded-xl hover:bg-white/5 transition cursor-pointer group border border-transparent hover:border-white/5" onclick="${isPodcast ? `Queue.set([${this.esc(t)}])` : `Queue.set([${this.esc(t)}])`}">
-                            <div class="relative w-12 h-12 flex-shrink-0">
-                                <img src="${t.artworkUrl100}" class="w-full h-full rounded-lg object-cover shadow-lg">
-                            </div>
-                            <div class="flex-1 min-w-0">
-                                <div class="flex items-center gap-1.5">
-                                    <h4 class="text-sm font-bold text-white truncate">${Security.unescapeHtml(t.trackName)}</h4>
-                                    ${t.trackExplicitness === 'explicit' ? '<span class="bg-zinc-800 text-zinc-500 text-[8px] font-bold px-1 rounded flex-shrink-0 border border-zinc-700">E</span>' : ''}
-                                </div>
-                                <p class="text-xs text-zinc-500 font-bold uppercase tracking-wide hover:text-white transition" onclick="event.stopPropagation(); UI.openArtistProfile({artistName: '${Security.escapeHtml(t.artistName).replace(/'/g, "\\'")}', artistId: '${t.artistId}'})">${Security.unescapeHtml(subText)}</p>
-                            </div>
-                            <button class="p-2 text-zinc-600 hover:text-white hover:bg-zinc-800 rounded-full transition" onclick="event.stopPropagation(); Queue.add(${this.esc(t)})"><i data-lucide="plus" class="w-4 h-4"></i></button>
-                        </div>`;
-                });
-                if(window.lucide) lucide.createIcons();
-            },
-
-            // --- ARTIST & LIST VIEWS ---
-            async openArtistProfile(trackObj) {
-                this.showList('artist', trackObj);
-            },
-
-            async openAlbum(id, name, art) {
-                 Router.go('list', { type: 'album', id, name, art });
-                 this.renderListGeneric('album', { id, name, art });
-            },
-
-            showList(type, data) {
-                Router.go('list', { type, data });
-                this.renderListGeneric(type, data);
-            },
-
-            async renderListGeneric(type, data) {
-                const hero = document.getElementById('list-hero');
-                const list = document.getElementById('list-tracks');
-                hero.innerHTML = ''; list.innerHTML = '';
-
-                if (type === 'liked') {
-                    hero.innerHTML = `
-                        <div class="flex items-end gap-5">
-                            <div class="w-28 h-28 bg-gradient-to-tr from-indigo-900 to-black rounded-xl flex items-center justify-center border border-white/10 shadow-xl"><i data-lucide="heart" class="w-10 h-10 fill-indigo-400 text-indigo-400"></i></div>
-                            <div><h1 class="text-3xl font-black leading-none mb-2">Liked Songs</h1><p class="text-[10px] text-zinc-500 font-bold uppercase tracking-wider mb-4">${State.favorites.length} Songs</p></div>
-                        </div>`;
-                    State.favorites.forEach((t, i) => {
-                        list.innerHTML += this.buildTrackItem(t, i, true);
-                    });
-                } 
-                else if (type === 'following') {
-                    hero.innerHTML = `
-                        <div class="flex items-end gap-5">
-                            <div class="w-28 h-28 bg-gradient-to-tr from-gray-900 to-white rounded-xl flex items-center justify-center border border-white/10 shadow-xl"><i data-lucide="mic-2" class="w-10 h-10 fill-black text-black"></i></div>
-                            <div><h1 class="text-3xl font-black leading-none mb-2">Following</h1><p class="text-[10px] text-zinc-500 font-bold uppercase tracking-wider mb-4">${State.followedArtists.length} Artists</p></div>
-                        </div>`;
-                    // Grid for artists
-                    list.className = "grid grid-cols-2 gap-4 pb-24 overflow-y-auto";
-                    State.followedArtists.forEach(a => {
-                        list.innerHTML += `
-                            <div class="bg-zinc-900/30 p-4 rounded-2xl border border-white/5 cursor-pointer hover:bg-zinc-900 transition group" onclick="UI.openArtistProfile({artistName: '${Security.escapeHtml(a.name).replace(/'/g, "\\'")}', artistId: '${a.id}'})">
-                                <div class="w-12 h-12 mb-3 mx-auto rounded-full bg-zinc-800 flex items-center justify-center"><i data-lucide="mic-2" class="w-6 h-6 text-zinc-500"></i></div>
-                                <p class="text-center text-sm font-bold text-white">${Security.safeText(a.name)}</p>
-                            </div>`;
-                    });
-                }
-                else if (type === 'local') {
-                    hero.innerHTML = `<h1 class="text-3xl font-black text-white tracking-tighter">Local Files</h1>`;
-                    State.localFiles.forEach((t, i) => {
-                        list.innerHTML += this.buildTrackItem(t, i, true);
-                    });
-                }
-                else if (type === 'playlist') {
-                    const pl = data;
-                    hero.innerHTML = `
-                        <div class="flex items-end gap-5">
-                            <div class="w-28 h-28 bg-gradient-to-tr from-zinc-800 to-zinc-900 rounded-xl flex items-center justify-center border border-white/10 shadow-xl"><i data-lucide="music" class="w-10 h-10 text-zinc-500"></i></div>
-                            <div><h1 class="text-3xl font-black leading-none mb-2">${Security.escapeHtml(pl.name)}</h1><p class="text-[10px] text-zinc-500 font-bold uppercase tracking-wider mb-4">${pl.tracks.length} Songs</p></div>
-                        </div>`;
-                    pl.tracks.forEach((t, i) => {
-                        list.innerHTML += this.buildTrackItem(t, i, true, pl.id);
-                    });
-                }
-                else if (type === 'artist') {
-                    const trackObj = data;
-                    const name = trackObj.artistName;
-                    const id = trackObj.artistId;
-                    const isFollowed = State.followedArtists.some(a => a.name === name);
-                    
-                    hero.innerHTML = `
-                        <div class="flex items-center justify-between mb-2">
-                            <h1 class="text-4xl font-black tracking-tighter text-white leading-none">${Security.escapeHtml(name)}</h1>
-                        </div>
-                        <div class="flex items-center gap-3">
-                             <button onclick="UI.toggleFollow('${id}', '${Security.escapeHtml(name).replace(/'/g, "\\'")}')" class="px-5 py-2 rounded-full text-[10px] font-bold uppercase tracking-widest transition ${isFollowed ? 'bg-white text-black' : 'bg-zinc-800 text-white border border-zinc-700'}">
-                                ${isFollowed ? 'Following' : 'Follow'}
-                            </button>
-                             <button onclick="UI.blockArtist('${Security.escapeHtml(name).replace(/'/g, "\\'")}')" class="p-2 text-zinc-500 hover:text-red-500 transition" title="Block Artist"><i data-lucide="ban" class="w-4 h-4"></i></button>
-                        </div>
-                    `;
-                    
-                    const topTracks = await API.search(name);
-                    list.innerHTML = `<h3 class="text-sm font-bold text-zinc-500 uppercase mb-2">Top Songs</h3>`;
-                    if(topTracks && topTracks.length > 0) {
-                        // Dedupe
-                        const seen = new Set();
-                        topTracks.forEach(t => { if(!seen.has(t.trackId)) { seen.add(t.trackId); list.innerHTML += this.buildTrackItem(t); }});
-                    }
-
-                    // Load Albums into sub-grid if needed, simplified for now
-                }
-                else if (type === 'album') {
-                    const { id, name, art } = data;
-                    hero.innerHTML = `
-                        <div class="flex items-end gap-5">
-                            <img src="${art.replace('100x100','300x300')}" class="w-28 h-28 rounded-xl shadow-2xl border border-white/10">
-                            <div><h1 class="text-2xl font-black leading-tight mb-1 line-clamp-2">${Security.escapeHtml(name)}</h1><p class="text-[10px] text-zinc-500 font-bold uppercase tracking-wider mb-3">Album</p></div>
-                        </div>`;
-                    const tracks = await API.getAlbumTracks(id);
-                    if(tracks) tracks.forEach((t, i) => list.innerHTML += this.buildTrackItem(t, i));
-                }
-
-                if(window.lucide) lucide.createIcons();
-            },
-
-            buildTrackItem(t, i, withDelete = false, plId = null) {
-                return `
-                    <div class="flex items-center gap-4 py-3 border-b border-white/5 group hover:bg-white/5 -mx-2 px-2 transition rounded-lg cursor-pointer" onclick="Queue.set([${this.esc(t)}])">
-                        <span class="text-xs font-mono text-zinc-600 w-4">${i+1 || ''}</span>
-                        <div class="flex-1 min-w-0">
-                            <p class="text-sm font-bold text-zinc-200 group-hover:text-white truncate">${Security.unescapeHtml(t.trackName)}</p>
-                            <p class="text-[10px] text-zinc-500 uppercase font-bold truncate">${Security.unescapeHtml(t.artistName)}</p>
-                        </div>
-                        ${withDelete ? `
-                            <button onclick="event.stopPropagation(); Library.removeFromPlaylist('${plId}', '${t.trackId}')" class="opacity-0 group-hover:opacity-100 p-2 text-zinc-500 hover:text-red-500 transition"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
-                        ` : ''}
-                    </div>`;
-            },
-
-            // --- LIBRARY RENDERER ---
-            async renderLibrary() {
-                const list = document.getElementById('library-list');
-                if(!list) return;
-                
-                let html = `
-                    <div class="flex items-center justify-between p-4 bg-zinc-900/30 rounded-2xl border border-white/5 cursor-pointer hover:bg-zinc-900 transition group mb-3" onclick="UI.renderListGeneric('liked')">
-                         <div class="flex items-center gap-4">
-                            <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-900 to-black flex items-center justify-center border border-indigo-500/20 shadow-lg"><i data-lucide="heart" class="w-5 h-5 fill-indigo-400 text-indigo-400"></i></div>
-                            <div><p class="text-sm font-bold text-white">Liked Songs</p><p class="text-[10px] text-zinc-500 uppercase font-bold tracking-wider">${State.favorites.length} Tracks</p></div>
-                        </div>
-                    </div>
-                    <div class="flex items-center justify-between p-4 bg-zinc-900/30 rounded-2xl border border-white/5 cursor-pointer hover:bg-zinc-900 transition group mb-3" onclick="UI.renderListGeneric('following')">
-                         <div class="flex items-center gap-4">
-                            <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-gray-900 to-white flex items-center justify-center border border-gray-500/20 shadow-lg"><i data-lucide="mic-2" class="w-5 h-5 fill-black text-black"></i></div>
-                            <div><p class="text-sm font-bold text-white">Following</p><p class="text-[10px] text-zinc-500 uppercase font-bold tracking-wider">${State.followedArtists.length} Artists</p></div>
-                        </div>
-                    </div>
-                    <div class="flex items-center justify-between p-4 bg-zinc-900/30 rounded-2xl border border-white/5 cursor-pointer hover:bg-zinc-900 transition group mb-3" onclick="UI.renderListGeneric('local')">
-                         <div class="flex items-center gap-4">
-                            <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-900 to-black flex items-center justify-center border border-blue-500/20 shadow-lg"><i data-lucide="hard-drive" class="w-5 h-5 fill-blue-400 text-blue-400"></i></div>
-                            <div><p class="text-sm font-bold text-white">Local Files</p><p class="text-[10px] text-zinc-500 uppercase font-bold tracking-wider">${State.localFiles.length} Files</p></div>
-                        </div>
-                    </div>
-                `;
-
-                State.playlists.forEach(pl => {
-                    html += `
-                        <div class="flex items-center justify-between p-4 bg-zinc-900/30 rounded-2xl border border-white/5 mb-2 cursor-pointer hover:bg-zinc-900 transition group" onclick="UI.renderListGeneric('playlist', State.playlists.find(p => p.id === '${pl.id}'))">
-                             <div class="flex items-center gap-4">
-                                <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-zinc-700 to-black flex items-center justify-center border border-white/5 shadow-lg"><i data-lucide="music-2" class="w-5 h-5 text-zinc-400"></i></div>
-                                <div><p class="text-sm font-bold text-white">${Security.escapeHtml(pl.name)}</p><p class="text-[10px] text-zinc-500 uppercase font-bold tracking-wider">${pl.tracks.length} Tracks</p></div>
-                            </div>
-                        </div>`;
-                });
-                list.innerHTML = html;
-                if(window.lucide) lucide.createIcons();
-            },
-
-            // --- PLAYER UI ---
-            updatePlayerUI() {
-                const t = State.currentTrack;
-                if(!t) return;
-                const mini = document.getElementById('mini-player');
-                if(mini) { mini.classList.remove('hidden'); }
-                
-                // Update text safely (Fix symbol codes)
-                const setText = (id, val) => { const el = document.getElementById(id); if(el) el.innerText = Security.unescapeHtml(val); };
-                
-                setText('mini-title', t.trackName); setText('mini-artist', t.artistName);
-                setText('player-title', t.trackName); setText('player-artist', t.artistName);
-                
-                const art = document.getElementById('player-art');
-                const miniArt = document.getElementById('mini-art');
-                if(art) art.src = t.artworkUrl100.replace('100x100', '600x600');
-                if(miniArt) miniArt.src = t.artworkUrl100;
-
-                const likeBtn = document.getElementById('like-btn');
-                if(likeBtn) {
-                    const isFav = State.favorites.some(f => f.trackId === t.trackId);
-                    likeBtn.innerHTML = `<i data-lucide="heart" class="w-5 h-5 ${isFav ? 'fill-red-500 text-red-500' : 'text-zinc-500'}"></i>`;
-                }
-                if(window.lucide) lucide.createIcons();
-            },
-
-            updatePlaybackState() {
-                const icon = State.isPlaying ? 'pause' : 'play';
-                const miniIconContainer = document.getElementById('mini-play-icon');
-                if(miniIconContainer) {
-                    // Fix mini player icon not updating
-                    miniIconContainer.setAttribute('data-lucide', icon);
-                    if(window.lucide) lucide.createIcons();
-                }
-                
-                const mainBtn = document.getElementById('main-play-btn');
-                if(mainBtn) {
-                    mainBtn.innerHTML = `<i data-lucide="${icon}" class="w-8 h-8 fill-black ${icon === 'play' ? 'ml-1' : ''}"></i>`;
-                    if(window.lucide) lucide.createIcons();
-                }
-            },
-
-            updateMiniPlayerState() {
-                 const bar = document.getElementById('mini-progress');
-                 // Handled in AudioEngine timeupdate
-            },
-
-            togglePlayer(show) {
-                const el = document.getElementById('full-player');
-                if (show) {
-                    if(el) el.classList.remove('hidden');
-                    requestAnimationFrame(() => { if(el) el.classList.remove('translate-y-full'); });
-                } else {
-                    if(el) { el.classList.add('translate-y-full'); setTimeout(() => el.classList.add('hidden'), 500); }
-                }
-            },
-            
-            toggleLyrics() { 
-                const p = document.getElementById('lyrics-panel');
-                if(p) p.classList.toggle('hidden'); 
-            },
-
-            toggleQueue() {
-                const q = document.getElementById('view-queue');
-                if(q) q.classList.toggle('hidden');
-                if(!q.classList.contains('hidden')) this.renderQueuePage();
-            },
-
-            renderQueuePage() {
-                const hero = document.getElementById('queue-now-playing');
-                if(hero && State.currentTrack) {
-                    hero.innerHTML = `
-                        <img src="${State.currentTrack.artworkUrl100.replace('100x100', '400x400')}" class="w-24 h-24 rounded-2xl shadow-2xl border border-white/10">
-                        <div><h2 class="text-2xl font-black text-white">${Security.unescapeHtml(State.currentTrack.trackName)}</h2><p class="text-zinc-400 text-sm font-bold uppercase">${Security.unescapeHtml(State.currentTrack.artistName)}</p></div>
-                    `;
-                }
-                const list = document.getElementById('queue-up-next-list');
-                if(list) {
-                    list.innerHTML = '';
-                    if(State.queue.length <= 1) list.innerHTML = '<p class="text-zinc-600 text-xs text-center italic">Queue is empty</p>';
-                    else {
-                        State.queue.slice(Queue.index + 1).forEach((t, i) => {
-                             list.innerHTML += `
-                                <div class="flex items-center gap-4 p-4 bg-zinc-900 rounded-xl border border-white/5 cursor-pointer hover:bg-zinc-800 transition" onclick="Queue.set(State.queue, ${Queue.index + 1 + i})">
-                                     <img src="${t.artworkUrl100}" class="w-10 h-10 rounded-lg">
-                                     <div><p class="text-xs font-bold text-white">${Security.unescapeHtml(t.trackName)}</p><p class="text-[10px] text-zinc-500 uppercase font-bold">${Security.unescapeHtml(t.artistName)}</p></div>
-                                </div>`;
-                        });
-                    }
-                }
-                if(window.lucide) lucide.createIcons();
-            },
-
-            openArtistFromPlayer() {
-                if(State.currentTrack) UI.openArtistProfile(State.currentTrack);
-            },
-
-            // --- ACTIONS ---
-            toggleFollow(id, name) {
-                const idx = State.followedArtists.findIndex(a => a.name === name);
-                if(idx > -1) {
-                    State.followedArtists.splice(idx, 1);
-                    UI.toast(`Unfollowed ${name}`);
-                } else {
-                    State.followedArtists.push({ id, name });
-                    UI.toast(`Following ${name}`);
-                }
-                Database.saveList('followed', State.followedArtists);
-                // Re-render if on artist view
-                if(State.currentContextParams && State.currentContextParams.type === 'artist') {
-                    UI.renderListGeneric('artist', State.currentContextParams.data);
-                }
-            },
-
-            blockCurrentArtist() {
-                if(!State.currentTrack) return;
-                this.blockArtist(State.currentTrack.artistName);
-            },
-
-            async blockArtist(name) {
-                if(!State.blockedArtists.includes(name)) {
-                    State.blockedArtists.push(name);
-                    await Database.saveList('blocked', State.blockedArtists);
-                    UI.triggerAlert("Artist Blocked", `${name} has been removed from your discovery.`);
-                    // Reload discovery if on home
-                    UI.loadHomeData();
-                }
-            },
-
-            openSettings() { 
-                const m = document.getElementById('modal-settings');
-                if(m) m.classList.remove('hidden');
-            },
-            closeSettings() { document.getElementById('modal-settings').classList.add('hidden'); },
-            
-            showChangelog() {
-                document.getElementById('modal-changelog').classList.remove('hidden');
-                localStorage.setItem('sniplit_changelog_seen', 'v2');
-            },
-
-            toggleSetting(key, el) {
-                State.preferences[key] = !State.preferences[key];
-                Database.save('preferences', State.preferences);
-                const knob = el.querySelector('div');
-                if(State.preferences[key]) {
-                    el.classList.remove('bg-zinc-800'); el.classList.add('bg-white');
-                    knob.classList.add('translate-x-5'); knob.classList.remove('bg-white'); knob.classList.add('bg-black');
-                    // Light mode special case
-                    if(key === 'lightMode') document.body.classList.add('light-mode');
-                } else {
-                    el.classList.add('bg-zinc-800'); el.classList.remove('bg-white');
-                    knob.classList.remove('translate-x-5'); knob.classList.add('bg-white'); knob.classList.remove('bg-black');
-                    if(key === 'lightMode') document.body.classList.remove('light-mode');
-                }
-            },
-
-            toggleLightMode(el) {
-                this.toggleSetting('lightMode', el);
-            },
-
-            toggleViz() {
-                const canvas = document.getElementById('viz-canvas');
-                if(canvas) canvas.style.opacity = State.preferences.viz ? '0.5' : '0';
-            },
-
-            showWrapped() {
-                if(Wrapped.calculate()) {
-                    State.wrapped.slide = 0;
-                    Wrapped.renderSlide();
-                    document.getElementById('wrapped-modal').classList.remove('hidden');
-                }
-            },
-
-            openAddToPlaylist() {
-                if(!State.currentTrack) return;
-                const list = document.getElementById('playlist-select-list');
-                if(!list) return;
-                list.innerHTML = '';
-                if(State.playlists.length === 0) {
-                    list.innerHTML = '<p class="text-xs text-zinc-500 text-center mt-10 font-bold uppercase">No Playlists</p><button onclick="UI.showCreatePlaylist()" class="w-full mt-4 py-3 bg-white text-black text-xs font-bold uppercase rounded-lg">Create One</button>';
-                } else {
-                    State.playlists.forEach(pl => {
-                        const btn = document.createElement('button');
-                        btn.className = 'w-full text-left p-4 bg-zinc-900 rounded-xl flex items-center justify-between border border-white/5 mb-2 hover:bg-zinc-800 transition';
-                        btn.innerHTML = `<span class="font-bold text-sm text-white">${Security.escapeHtml(pl.name)}</span> <span class="text-[10px] text-zinc-500 font-bold">${pl.tracks.length} Songs</span>`;
-                        btn.onclick = () => Library.addToPlaylist(pl.id);
-                        list.appendChild(btn);
-                    });
-                }
-                document.getElementById('modal-add-playlist').classList.remove('hidden');
-            },
-            showCreatePlaylist() { 
-                  UI.triggerPrompt('Create Playlist', 'Enter playlist name', (name) => Library.createPlaylist(name));
-             },
-            
-            // --- MODALS & ALERTS ---
-            toast(msg) {
-                const t = document.getElementById('toast');
-                if(t) { t.innerText = msg; t.style.opacity = '1'; setTimeout(() => t.style.opacity = '0', 2000); }
-            },
-            triggerAlert(title, msg) {
-                document.getElementById('alert-title').innerText = title;
-                document.getElementById('alert-msg').innerText = msg;
-                document.getElementById('ui-alert').classList.add('active');
-            },
-            closeAlert() { document.getElementById('ui-alert').classList.remove('active'); },
-            triggerConfirm(title, msg, onYes) {
-                document.getElementById('confirm-title').innerText = title;
-                document.getElementById('confirm-msg').innerText = msg;
-                const btn = document.getElementById('confirm-yes-btn');
-                const newBtn = btn.cloneNode(true);
-                btn.parentNode.replaceChild(newBtn, btn);
-                newBtn.addEventListener('click', () => { onYes(); UI.closeConfirm(); });
-                document.getElementById('ui-confirm').classList.add('active');
-            },
-            closeConfirm() { document.getElementById('ui-confirm').classList.remove('active'); },
-            triggerPrompt(title, placeholder, onSubmit) {
-                document.getElementById('prompt-title').innerText = title;
-                const i = document.getElementById('prompt-input');
-                i.value = ''; i.placeholder = placeholder;
-                const btn = document.getElementById('prompt-yes-btn');
-                const newBtn = btn.cloneNode(true);
-                btn.parentNode.replaceChild(newBtn, btn);
-                newBtn.addEventListener('click', () => { onSubmit(i.value); UI.closePrompt(); });
-                document.getElementById('ui-prompt').classList.add('active');
-                setTimeout(() => i.focus(), 100);
-            },
-            closePrompt() { document.getElementById('ui-prompt').classList.remove('active'); },
-            
-            // --- VISUALIZER ---
-            initVisualizer() {
-                const canvas = document.getElementById('viz-canvas');
-                if(!canvas) return;
-                const ctx = canvas.getContext('2d');
-                let width, height;
-                const resize = () => {
-                    if(!canvas.parentElement) return;
-                    width = canvas.width = canvas.parentElement.offsetWidth;
-                    height = canvas.height = canvas.parentElement.offsetHeight;
-                };
-                window.addEventListener('resize', resize); setInterval(resize, 1000); 
-                const draw = () => {
-                    requestAnimationFrame(draw);
-                    if(!State.preferences.viz) { ctx.clearRect(0,0,width,height); return; }
-                    ctx.clearRect(0, 0, width, height);
-                    if (State.isPlaying && AudioEngine.analyser && !State.isLINKMode) {
-                        const bufferLength = AudioEngine.analyser.frequencyBinCount;
-                        const dataArray = new Uint8Array(bufferLength);
-                        AudioEngine.analyser.getByteTimeDomainData(dataArray);
-                        ctx.lineWidth = 1.5; ctx.strokeStyle = `rgba(255, 255, 255, 0.5)`; ctx.beginPath();
-                        const sliceWidth = width * 1.0 / bufferLength; let x = 0;
-                        for (let i = 0; i < bufferLength; i++) {
-                            const v = dataArray[i] / 128.0; const y = v * height / 2;
-                            if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); x += sliceWidth;
-                        }
-                        ctx.lineTo(canvas.width, canvas.height / 2); ctx.stroke();
-                    }
-                };
-                draw();
-            },
-            esc(obj) { return JSON.stringify(obj).replace(/"/g, '&quot;'); }
-        };
-
-        // --- ONBOARDING ---
-        const Onboarding = {
-            async check() {
-                const user = await Database.get('user_name');
-                if(!user) {
-                    document.getElementById('onboarding-layer').classList.remove('hidden');
-                    return false;
-                }
-                return true;
-            },
-            agreeTerms() {
-                document.getElementById('ob-terms').classList.add('hidden');
-                document.getElementById('ob-survey').classList.remove('hidden');
-            },
-            finish() {
-                let name = "Guest"; 
-                const nameInput = document.getElementById('survey-name');
-                if (nameInput && nameInput.value) {
-                    const validation = Security.validateUsername(nameInput.value);
-                    if (!validation.valid) { UI.triggerAlert("Invalid Name", validation.reason); return; }
-                    name = nameInput.value;
-                }
-                if (nameInput) {
-                    State.preferences.favoriteGenre = document.getElementById('ob-genre-select').value;
-                    Database.save('preferences', State.preferences);
-                }
-                Database.save('user_name', name).then(() => { State.user = name; });
-                location.reload();
-            }
-        };
-
-        // --- DEBOUNCE ---
-        function debounce(func, timeout = 300) {
-            let timer;
-            return (...args) => { clearTimeout(timer); timer = setTimeout(() => { func.apply(this, args); }, timeout); };
-        }
-
-        window.onload = UI.init.bind(UI);
-    </script>
+    <script src="src/main.js"> </script>
 </body>
+
 </html>
