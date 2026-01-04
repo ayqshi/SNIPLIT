@@ -440,6 +440,16 @@ const AudioEngine = {
     },
 
     updateMediaSession() {
+        if ('setPositionState' in navigator.mediaSession) {
+    navigator.mediaSession.setPositionState({
+        duration: State.isLINKMode ? LINKEngine.getDuration() : this.el.duration,
+        playbackRate: this.el.playbackRate,
+        position: State.isLINKMode ? LINKEngine.getTime() : this.el.currentTime
+    });
+}
+if ('mediaSession' in navigator) {
+    navigator.mediaSession.playbackState = State.isPlaying ? "playing" : "paused";
+}
         if ('mediaSession' in navigator && State.currentTrack) {
             navigator.mediaSession.metadata = new MediaMetadata({
                 title: Security.unescapeHtml(State.currentTrack.trackName),
@@ -662,8 +672,6 @@ const API = {
         return {
             artist: artist,
             events: [
-                { date: "Oct 24", city: "New York", venue: "Madison Square Garden" },
-                { date: "Nov 02", city: "London", venue: "O2 Arena" }
             ]
         };
     }
@@ -819,8 +827,8 @@ const Wrapped = {
 
         if (slide === 0) {
             html = `<div class="animate-slide-up space-y-4">
-                        <h1 class="text-6xl font-black tracking-tighter" style="color: var(--text-primary);">2025<br>WRAPPED</h1>
-                        <p class="text-xs font-mono uppercase tracking-widest" style="color: var(--text-tertiary);">Your Sonic Identity</p>
+                        <h1 class="text-6xl font-black tracking-tighter" style="color: var(--text-primary);">SNIPLIT<br>WRAPPED</h1>
+                        <p class="text-xs font-mono uppercase tracking-widest" style="color: var(--text-tertiary);">Your Personal review.</p>
                     </div>`;
         } else if (slide === 1) {
             html = `<div class="animate-slide-up space-y-2">
