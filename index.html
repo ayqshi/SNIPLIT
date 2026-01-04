@@ -53,7 +53,9 @@
         <div id="ob-terms" class="max-w-md mx-auto w-full flex flex-col h-full justify-center space-y-6">
             <h2 class="text-3xl font-black tracking-tight">Welcome</h2>
             <p class="text-sm leading-relaxed" style="color: var(--text-secondary);">
-                SNIPLIT uses advanced algorithms to curate your audio experience. We store your preferences locally.
+                SNIPLIT uses advanced algorithms and usage patterns to curate your audio experience. We store your preferences locally (secure profiling).
+                SNIPLIT does not host any copyrighted material, file hosts are provided via API and other 3rd party sources.
+                You must be of 13 years of age to use SNIPLIT.
                 By continuing, you agree to our simulated Terms of Service.
             </p>
             <div class="bg-[var(--bg-surface)] p-4 rounded-xl border border-[var(--border-subtle)]">
@@ -120,14 +122,14 @@
 
         <!-- Notification Banner (Config Import) -->
         <div id="notification-bar"
-            class="hidden mx-6 mb-4 p-3 rounded-xl border border-[var(--border-subtle)] bg-blue-600/10 border-blue-600/20 flex items-center gap-3 animate-slide-up">
-            <i data-lucide="database" class="w-5 h-5 text-blue-500"></i>
+            class="hidden mx-6 mb-4 p-3 rounded-xl border border-[var(--border-subtle)] bg-8f25eb-600/10 border-8f25eb-600/20 flex items-center gap-3 animate-slide-up">
+            <i data-lucide="database" class="w-5 h-5 text-8f25eb-500"></i>
             <div class="flex-1 text-xs">
-                <p class="font-bold text-blue-400">Config Import Available</p>
-                <p class="opacity-80">Backup your library in settings.</p>
+                <p class="font-bold text-purple-400">Application Available</p>
+                <p class="opacity-80">Add to your Home Screen for the best app-like experience. </p>
             </div>
             <button onclick="document.getElementById('notification-bar').remove()"
-                class="text-blue-500 hover:text-white"><i data-lucide="x" class="w-4 h-4"></i></button>
+                class="text-8f25eb-500 hover:text-white"><i data-lucide="x" class="w-4 h-4"></i></button>
         </div>
 
         <!-- Main Viewport -->
@@ -640,8 +642,8 @@
         </div>
 
         <!-- === TOAST === -->
-        <div id="toast"
-            class="fixed top-6 left-1/2 -translate-x-1/2 bg-[var(--text-primary)] text-[var(--text-inverse)] px-6 py-3 rounded-full text-xs font-bold uppercase tracking-widest shadow-2xl z-[9999] opacity-0 pointer-events-none transition-opacity duration-300">
+        <div id="toast" style="display: none;"
+            class="hidden fixed top-6 left-1/2 -translate-x-1/2 bg-[var(--text-primary)] text-[var(--text-inverse)] px-6 py-3 rounded-full text-xs font-bold uppercase tracking-widest shadow-2xl z-[9999] opacity-0 pointer-events-none transition-opacity duration-300">
             Notification</div>
 
         <!-- === HIDDEN INPUTS === -->
