@@ -1,7 +1,5 @@
 
-        /* --- CORE THEME VARIABLES (Advanced & Considerate) --- */
         :root {
-            /* Palette: Deep Space */
             --bg-app: #000000;
             --bg-surface: #09090b;
             --bg-surface-hover: #18181b;
@@ -17,7 +15,7 @@
             --border-focus: rgba(255, 255, 255, 0.3);
             
             --accent-primary: #ffffff;
-            --accent-secondary: #3b82f6; /* Electric Blue */
+            --accent-secondary: #8f25eb; 
             --accent-danger: #ef4444;
             --accent-success: #22c55e;
             
@@ -43,8 +41,17 @@
 html, body {
   user-select: none;
   overflow: hidden;
+  width: 100%;
+  overscroll-behavior: none;
+
 }
-        /* --- LIGHT MODE OVERRIDES --- */
+img {
+  -webkit-user-drag: none; 
+  -khtml-user-drag: none; 
+  -moz-user-drag: none;    
+  -o-user-drag: none;     
+  user-drag: none;         
+}
         body.light-mode {
             --bg-app: #ffffff;
             --bg-surface: #f4f4f5;
@@ -60,7 +67,7 @@ html, body {
             --border-default: rgba(0, 0, 0, 0.1);
             
             --accent-primary: #000000;
-            --accent-secondary: #2563eb;
+            --accent-secondary: #8f25eb;
             
             --glass-bg: rgba(255, 255, 255, 0.85);
             
