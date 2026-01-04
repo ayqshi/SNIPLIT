@@ -1,10 +1,4 @@
 
-/**
- * SNIPLIT v2.0.1 - Advanced Audio Intelligence
- * 2500+ Lines of Code
- * Comprehensive Feature Set
- */
-
 // --- LOGGING ---
 const Log = {
     info: (mod, msg) => console.log(`%c[${mod}]`, 'color: #3b82f6; font-weight: bold;', msg),
@@ -1688,7 +1682,7 @@ const UI = {
         el.ontouchstart = (e) => startY = e.touches[0].clientY;
         el.ontouchmove = (e) => {
             const diff = e.touches[0].clientY - startY;
-            if (diff > 150) { // Swipe down threshold
+            if (diff > 250) { // Swipe down threshold
                 this.togglePlayer(false);
                 el.ontouchstart = null; el.ontouchmove = null;
             }
@@ -1715,7 +1709,7 @@ const UI = {
                 let startY = 0;
                 q.ontouchstart = (e) => startY = e.touches[0].clientY;
                 q.ontouchmove = (e) => {
-                    if (e.touches[0].clientY - startY > 100) {
+                    if (e.touches[0].clientY - startY > 250) {
                         this.toggleQueue();
                         q.ontouchstart = null; q.ontouchmove = null;
                     }
@@ -1923,36 +1917,47 @@ const UI = {
 
     esc(obj) { return JSON.stringify(obj).replace(/"/g, '&quot;'); },
 
-    initVisualizer() {
+   initVisualizer() {
         const canvas = document.getElementById('viz-canvas');
-        if (!canvas) return;
+        if(!canvas) return;
         const ctx = canvas.getContext('2d');
         let width, height;
         const resize = () => {
-            if (!canvas.parentElement) return;
+            if(!canvas.parentElement) return;
             width = canvas.width = canvas.parentElement.offsetWidth;
             height = canvas.height = canvas.parentElement.offsetHeight;
         };
         window.addEventListener('resize', resize);
-        setInterval(resize, 1000);
+        setInterval(resize, 1000); 
+
         const draw = () => {
             requestAnimationFrame(draw);
-
-            // Toggle Viz Check
-            if (!State.preferences.viz) {
-                ctx.clearRect(0, 0, width, height);
-                return;
+            
+            // Logic: Check Viz Toggle & Lyrics Visibility
+            if(!State.preferences.viz) { 
+                ctx.clearRect(0,0,width,height); 
+                return; 
             }
 
             ctx.clearRect(0, 0, width, height);
+            const lyricsPanel = document.getElementById('lyrics-panel');
+            const isLyricsVisible = !lyricsPanel.classList.contains('hidden') && State.isPlaying;
+            
+            let opacity = State.preferences.vizOpacity || 1.0;
+            let lineWidth = 1.5;
+            
+            if (isLyricsVisible) {
+                opacity *= 0.5; // Fade out significantly
+                lineWidth = 1; // Thinner lines
+            }
 
             if (State.isPlaying && AudioEngine.analyser && !State.isLINKMode) {
                 const bufferLength = AudioEngine.analyser.frequencyBinCount;
                 const dataArray = new Uint8Array(bufferLength);
                 AudioEngine.analyser.getByteTimeDomainData(dataArray);
-
-                ctx.lineWidth = 1.5;
-                ctx.strokeStyle = `rgba(255, 255, 255, 0.3)`;
+                
+                ctx.lineWidth = lineWidth;
+                ctx.strokeStyle = `rgba(255, 255, 255, ${opacity})`; 
                 ctx.beginPath();
                 const sliceWidth = width * 1.0 / bufferLength;
                 let x = 0;
@@ -1968,7 +1973,7 @@ const UI = {
             }
         };
         draw();
-    }
+    },
 };
 
 // --- ONBOARDING ---
