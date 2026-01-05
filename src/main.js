@@ -8,6 +8,585 @@ const CONFIG = {
     SCROLL_MEMORY: true
 };
 
+// --- AD SHIELD & LAUNCHER SIMULATION ---
+const AdShield = {
+    isAdDetected: false,
+    detectionInterval: null,
+    
+    // Logic to check for YouTube Ad Overlays
+    checkOverlay() {
+        const iframe = document.querySelector('#yt-audio-container iframe');
+        if(!iframe) return false;
+        
+        try {
+            // Access the content document (CORS might block this in some environments)
+            const iDoc = iframe.contentDocument || iframe.contentWindow.document;
+            if(iDoc) {
+                // Check for common ad classes
+                const ads = iDoc.querySelectorAll('.ytp-ad-overlay, .ytp-ad-persistent-overlay, .ytp-error-overlay, .ytp-paid-content-overlay');
+                if(ads.length > 0) return true;
+            }
+        } catch(e) {
+            // Ignore CORS errors
+        }
+        return false;
+    },
+
+    // Logic: "Switching iframe src" (Session Refresh)
+    refreshSession() {
+        UI.toast("Ad Detected! Rotating Session...");
+        
+        // 1. Get current track info
+        const currentTrack = State.currentTrack;
+        if(!currentTrack) return;
+        
+        // 2. Destroy existing player
+        if(YouTubeEngine.player) {
+            YouTubeEngine.player.destroy();
+            YouTubeEngine.player = null;
+        }
+        
+        // 3. Clean the container
+        const container = document.getElementById('yt-audio-container');
+        if(container) {
+            container.innerHTML = ''; // Full clear
+        }
+        
+        // 4. Generate a random session ID (Simulate VPN Rotation)
+        const sessionId = Math.floor(Math.random() * 10000);
+        
+        // 5. Create a new player with the "VPN" parameter
+        // Note: We don't actually have different domains, so we append a dummy param.
+        // This forces the YouTube API to treat it as a fresh load.
+        window.onYouTubeIframeAPIReady = () => {
+            YouTubeEngine.isReady = true;
+            Log.info('AdShield', `Session Rotated (ID: ${sessionId})`);
+            // --- UPDATED: YOUTUBE ENGINE (SECURE & HIDDEN) ---
+const YouTubeEngine = {
+    player: null,
+    isReady: false,
+    
+    createPlayer() {
+        // 1. Sandbox the Iframe (Crucial for Security/Hiding)
+        // "allow-scripts": Required for API.
+        // "allow-forms": Required for search/autocomplete.
+        // "allow-same-origin": Required for API.
+        // Omitting "allow-top-navigation": Prevents opening new tabs on ads (Safer).
+        const container = document.getElementById('yt-audio-container-wrapper');
+        
+        // If container doesn't exist, create it dynamically
+        if(!container) {
+            const div = document.createElement('div');
+            div.id = 'yt-audio-container-wrapper';
+            div.style.cssText = 'position:fixed; top:-9999px; left:-9999px; width:1px; height:1px; opacity:0; pointer-events:none;';
+            document.body.appendChild(div);
+        } else {
+            // Clear any previous iframe content manually to ensure "HIDDEN" state
+            container.innerHTML = '';
+        }
+
+        this.player = new YT.Player('yt-audio-container-wrapper', {
+            height: '100%',
+            width: '100%',
+            videoId: '',
+            playerVars: {
+                'playsinline': 1,
+                'controls': 0, // Hides YouTube controls
+                'disablekb': 1, // Hides keyboard shortcut overlay
+                'rel': 0, // Disables "Related Videos" and "Up Next" (DISCREET)
+                'showinfo': 0, // Disables "Watch More" info (SECURE)
+                'iv_load_policy': 3, // Hides annotations (SAFE)
+                'autoplay': 0, // We control play manually
+                'modestbranding': 1, // Removes large YouTube logo (HIDDEN)
+                'origin': window.location.origin 
+            },
+            events: {
+                'onReady': () => {
+                    State.isLoading = false;
+                    Log.info('YT', 'Player Instance Ready');
+                },
+                'onStateChange': (e) => {
+                    // 2. HIDDEN/SECURE: Detect Ads
+                    if (e.data === YT.PlayerState.PLAYING) {
+                        State.isLoading = false;
+                        State.isYouTubeMode = true;
+                        State.isPlaying = true;
+                        UI.updatePlaybackState();
+                        UI.updateMiniPlayerState();
+                    }
+                    if (e.data === YT.PlayerState.ENDED) {
+                        Queue.onTrackEnd();
+                    }
+                    if (e.data === YT.PlayerState.BUFFERING) {
+                        State.isLoading = true;
+                    }
+                }
+            }
+        });
+        
+        // 3. Mask the actual iframe wrapper until needed (HIDDEN)
+        // We set it to display: none initially
+        container.style.display = 'none';
+
+        const tag = document.createElement('script');
+        tag.src = "https://www.youtube.com/iframe_api";
+        const firstScriptTag = document.getElementsByTagName('script')[0];
+        firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+        
+        window.onYouTubeIframeAPIReady = () => {
+            this.isReady = true;
+            Log.info('YT', 'API Ready (Sandboxed)');
+        };
+    },
+
+    loadVideo(videoId, startSeconds = 0) {
+        if (!this.isReady || !this.player) return false;
+        
+        // REVEAL PLAYER: Only make visible when explicitly playing a track (DISCREET)
+        const container = document.getElementById('yt-audio-container-wrapper');
+        if(container) {
+            container.classList.remove('hidden');
+            container.style.position = 'fixed';
+            container.style.top = '-9999px';
+            container.style.left = '-9999px';
+            container.style.zIndex = '0';
+            container.style.opacity = '0';
+        }
+
+        State.isYouTubeMode = true;
+        State.isLoading = true; 
+
+        this.player.loadVideoById(videoId, startSeconds);
+        this.player.setVolume(100); 
+        this.player.unMute(); 
+        return true;
+    },
+
+    play() { 
+        if(this.player) {
+            this.player.playVideo(); 
+            // REVEAL PLAYER
+            const container = document.getElementById('yt-audio-container-wrapper');
+            if(container) {
+                container.style.opacity = '1';
+                container.style.zIndex = '0'; // Keep hidden position for pure background audio feel
+            }
+        }
+    },
+    pause() { 
+        if(this.player) this.player.pauseVideo(); 
+    },
+    seekTo(seconds) { if(this.player) this.player.seekTo(seconds, true); },
+    getTime() { return this.player ? this.player.getCurrentTime() : 0; },
+    getDuration() { return this.player ? this.player.getDuration() : 0; },
+    
+    // NEW: Hide Player completely (HIDDEN)
+    hidePlayer() {
+        if(this.player) this.player.stopVideo();
+        const container = document.getElementById('yt-audio-container-wrapper');
+        if(container) {
+            container.classList.add('hidden');
+            container.innerHTML = ''; // Wipe memory (SECURE)
+        }
+    }
+};
+
+// --- UPDATED: AUDIO ENGINE (DISCREET) ---
+const AudioEngine = {
+    el: new Audio(),
+    ctx: null,
+    analyser: null,
+    source: null,
+    
+    init() {
+        this.el.crossOrigin = "anonymous";
+        
+        this.el.addEventListener('loadstart', () => { State.isLoading = true; UI.updateMiniPlayerState(); });
+        this.el.addEventListener('canplay', () => { State.isLoading = false; UI.updateMiniPlayerState(); });
+        this.el.addEventListener('timeupdate', () => {
+            if(!State.isYouTubeMode) this.onTimeUpdate();
+            // 2. DISCREET: Update Title only when tab is active or if not hidden
+            this.updateTitle();
+        });
+        this.el.addEventListener('ended', () => {
+            if(!State.isYouTubeMode) Queue.next(); 
+        });
+        this.el.addEventListener('play', () => {
+            if(State.isYouTubeMode) return;
+            State.isPlaying = true;
+            State.isLoading = false;
+            UI.updatePlaybackState();
+            UI.updateMiniPlayerState();
+            if(!this.ctx) this.initAudioContext();
+        });
+        this.el.addEventListener('pause', () => {
+            if(State.isYouTubeMode) return;
+            State.isPlaying = false;
+            UI.updatePlaybackState();
+            UI.updateMiniPlayerState();
+        });
+        
+        setInterval(() => {
+            UI.updateMiniPlayerState(); 
+            if(State.isPlaying && State.isYouTubeMode && YouTubeEngine.player && YouTubeEngine.player.getCurrentTime) {
+                this.onTimeUpdate(YouTubeEngine.player.getCurrentTime(), YouTubeEngine.player.getDuration());
+                LyricsEngine.sync();
+            }
+        }, 300); 
+
+        Log.success('Audio', 'Engine Initialized (Discreet Mode)');
+        YouTubeEngine.init();
+    },
+
+    initAudioContext() {
+        try {
+            this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+            this.analyser = this.ctx.createAnalyser();
+            this.analyser.fftSize = 2048; 
+            this.source = this.ctx.createMediaElementSource(this.el);
+            this.source.connect(this.analyser);
+            this.analyser.connect(this.ctx.destination);
+            Log.info('Audio', 'Web Audio API Connected');
+        } catch(e) {
+            Log.warn('Audio', 'Visualizer not supported (CORS/Browser restriction)');
+        }
+    },
+
+    load(track, autoplay = true) {
+        if(!track) return;
+        State.currentTrack = track;
+        State.isLoading = true; 
+
+        const key = this.normalizeKey(`${track.artistName} ${track.trackName}`);
+        const ytData = YOUTUBE_DB[key];
+        
+        State.isYouTubeMode = false;
+        this.el.pause();
+
+        if (ytData) {
+            Log.info('YT-Audio', `Found Match for: ${key}`);
+            track.trackTimeMillis = ytData.d; 
+            
+            // HIDE: Destroy any existing YouTube instance to ensure clean state
+            YouTubeEngine.hidePlayer();
+
+            if (YouTubeEngine.isReady) {
+                const loaded = YouTubeEngine.loadVideo(ytData.v);
+                if (loaded) {
+                    State.isPlaying = true; 
+                    UI.updatePlaybackState();
+                    UI.updateMiniPlayerState();
+                    this.postLoadProcess(track);
+                    return;
+                }
+            } else {
+                Log.warn('YT-Audio', 'API not ready, falling back to preview');
+            }
+        }
+
+        Log.info('Audio', `Loading iTunes Preview: ${track.trackName}`);
+        this.el.src = track.previewUrl || track.localUrl;
+        if(autoplay) {
+            this.el.play().catch(e => {
+                Log.warn('Audio', 'Autoplay prevented');
+                State.isLoading = false;
+            });
+        }
+        
+        this.postLoadProcess(track);
+    },
+
+    postLoadProcess(track) {
+        State.history.unshift(track);
+        State.history = Array.from(new Set(State.history.map(a => a.trackId)))
+            .map(id => State.history.find(a => a.trackId === id))
+            .slice(0, 200);
+        Database.save('history', State.history);
+        
+        State.analytics.tracksPlayed++;
+        Database.saveAnalytics(State.analytics);
+        
+        if(track.primaryGenreName) State.genres.add(track.primaryGenreName);
+        
+        UI.updatePlayerUI();
+        LyricsEngine.fetch(track);
+        this.updateMediaSession();
+        Log.info('Audio', `Loaded: ${track.trackName}`);
+    },
+
+    normalizeKey(str) {
+        return str.toLowerCase().replace(/[^\w\s]/gi, '').replace(/\s+/g, ' ').trim();
+    },
+
+    toggle() {
+        if(State.isYouTubeMode) {
+            if(State.isPlaying) YouTubeEngine.pause();
+            else YouTubeEngine.play();
+        } else {
+            if(!this.el.src) return;
+            this.el.paused ? this.el.play() : this.el.pause();
+        }
+        State.isPlaying = !State.isPlaying;
+        UI.updatePlaybackState();
+        UI.updateMiniPlayerState();
+        if(State.preferences.haptics && navigator.vibrate) navigator.vibrate(20);
+        this.updateMediaSession();
+    },
+
+    seek(val) {
+        const duration = State.isYouTubeMode ? YouTubeEngine.getDuration() : this.el.duration;
+        if(!duration) return;
+        const time = (val / 100) * duration;
+        if(State.isYouTubeMode) YouTubeEngine.seekTo(time);
+        else this.el.currentTime = time;
+    },
+
+    seekByLyric(time) {
+        State.isLoading = true; 
+        if(State.isYouTubeMode) {
+            YouTubeEngine.seekTo(time);
+            YouTubeEngine.play();
+        } else {
+            this.el.currentTime = time;
+            this.el.play();
+        }
+        State.isPlaying = true;
+        UI.updatePlaybackState();
+    },
+
+    // 4. DISCREET: Title Masking
+    updateTitle() {
+        // Check if document has focus (User is looking at it)
+        const hasFocus = document.hasFocus();
+        
+        if (State.currentTrack) {
+            if (hasFocus && State.isPlaying) {
+                // Only show song name if focused and playing
+                document.title = `${Security.safeText(State.currentTrack.trackName)} - ${Security.safeText(State.currentTrack.artistName)}`;
+            } else {
+                // Always hide generic name otherwise
+                document.title = "Sniplit - Music Player";
+            }
+        } else {
+            document.title = "Sniplit";
+        }
+    },
+
+    onTimeUpdate(curTime = null, durTime = null) {
+        const currentTime = curTime !== null ? curTime : this.el.currentTime;
+        const duration = durTime !== null ? durTime : this.el.duration;
+
+        if(!duration) return;
+        const pct = (currentTime / duration) * 100;
+        
+        const slider = document.getElementById('player-progress');
+        if(slider) slider.value = pct || 0;
+        
+        const miniBar = document.getElementById('mini-progress');
+        if(miniBar) miniBar.style.width = `${pct || 0}%`;
+
+        const curEl = document.getElementById('time-cur');
+        const totEl = document.getElementById('time-total');
+        if(curEl) curEl.innerText = this.formatTime(currentTime);
+        if(totEl) totEl.innerText = this.formatTime(duration);
+        
+        State.analytics.totalSecondsListened += 0.3;
+
+        if ('mediaSession' in navigator && State.isPlaying) {
+            try {
+                navigator.mediaSession.setPositionState({
+                    duration: duration,
+                    playbackRate: 1,
+                    position: currentTime
+                });
+            } catch(e) {}
+        }
+    },
+    
+    formatTime(s) {
+        if(!s || isNaN(s)) return "0:00";
+        const m = Math.floor(s/60);
+        const r = Math.floor(s%60);
+        return `${m}:${r < 10 ? '0' : ''}${r}`;
+    },
+
+    updateMediaSession() {
+        if ('mediaSession' in navigator && State.currentTrack) {
+            navigator.mediaSession.metadata = new MediaMetadata({
+                title: State.currentTrack.trackName,
+                artist: State.currentTrack.artistName,
+                album: State.currentTrack.collectionName,
+                // 4. SAFE: Ensure artwork is loaded locally first if possible
+                artwork: [{ src: State.currentTrack.artworkUrl100.replace('100x100', '600x600'), sizes: '600x600', type: 'image/jpeg' }]
+            });
+
+            const actionHandlers = {
+                play: () => { 
+                    this.el.play(); YouTubeEngine.play(); 
+                    State.isPlaying=true; UI.updatePlaybackState(); UI.updateMiniPlayerState();
+                },
+                pause: () => { 
+                    this.el.pause(); YouTubeEngine.pause(); 
+                    State.isPlaying=false; UI.updatePlaybackState(); UI.updateMiniPlayerState();
+                },
+                previoustrack: () => Queue.prev(),
+                nexttrack: () => Queue.next(),
+                seekto: (details) => {
+                    if (details.seekTime && details.seekTime !== undefined) {
+                        const duration = State.isYouTubeMode ? YouTubeEngine.getDuration() : this.el.duration;
+                        const time = details.seekTime;
+                        this.el.currentTime = time;
+                        YouTubeEngine.seekTo(time);
+                        this.onTimeUpdate(time, duration);
+                    }
+                },
+                seekforward: (details) => {
+                    const offset = details.seekOffset || 10;
+                    const time = (State.isYouTubeMode ? YouTubeEngine.getTime() : this.el.currentTime) + offset;
+                    this.seekByLyric(time);
+                },
+                seekbackward: (details) => {
+                    const offset = details.seekOffset || 10;
+                    const time = (State.isYouTubeMode ? YouTubeEngine.getTime() : this.el.currentTime) - offset;
+                    this.seekByLyric(time);
+                }
+            };
+
+            for (const [action, handler] of Object.entries(actionHandlers)) {
+                try { navigator.mediaSession.setActionHandler(action, handler); } catch (e) {}
+            }
+        }
+    }
+};
+
+
+document.addEventListener('visibilitychange', handleVisibilityChange);
+            // Immediately load the track again (skipping the pre-roll)
+            YouTubeEngine.player = new YT.Player('yt-audio-container', {
+                height: '100%',
+                width: '100%',
+                videoId: '',
+                playerVars: {
+                    'playsinline': 1,
+                    'controls': 0,
+                    'disablekb': 1,
+                    'origin': window.location.origin,
+                    // 'autoplay': 1 // Try to auto-play immediately
+                },
+                events: {
+                    'onReady': (event) => {
+                         // Force seek to 0 to prevent weird start states
+                         event.target.seekTo(0);
+                         event.target.setVolume(100);
+                         event.target.unMute();
+                    },
+                    'onStateChange': (e) => {
+                         const p = e.target;
+                         if (e.data === YT.PlayerState.PLAYING) {
+                             State.isYouTubeMode = true;
+                             State.isPlaying = true;
+                             UI.updatePlaybackState();
+                             UI.updateMiniPlayerState();
+                         }
+                         if (e.data === YT.PlayerState.ENDED) {
+                             Queue.onTrackEnd();
+                         }
+                         // Check for ad again on state change
+                         AdShield.monitorAdState(p);
+                    }
+                }
+            });
+        };
+        
+        const tag = document.createElement('script');
+        tag.src = "https://www.youtube.com/iframe_api";
+        const firstScriptTag = document.getElementsByTagName('script')[0];
+        firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+
+        // 6. Reload the track immediately
+        setTimeout(() => {
+            const key = AudioEngine.normalizeKey(`${currentTrack.artistName} ${currentTrack.trackName}`);
+            const ytData = YOUTUBE_DB[key];
+            if (ytData) {
+                YouTubeEngine.player.loadVideoById(ytData.v, 0);
+                State.currentTrack.trackTimeMillis = ytData.d; 
+                UI.updatePlayerUI();
+                LyricsEngine.fetch(State.currentTrack);
+            }
+        }, 500);
+    },
+
+    // Logic to monitor state for freezes (Buffering = Ad)
+    monitorAdState(player) {
+        // We use a "Sanity Timer". 
+        // If the player is BUFFERING for > 5 seconds, it's likely an ad.
+        if (this.detectionInterval) clearInterval(this.detectionInterval);
+
+        let timeFrozenCounter = 0;
+
+        this.detectionInterval = setInterval(() => {
+            const currentTime = player.getCurrentTime();
+            const state = player.getPlayerState();
+
+            // Check if we are deep in a song (after 10s)
+            if(currentTime && currentTime > 10) {
+                if (state === YT.PlayerState.BUFFERING) {
+                    timeFrozenCounter++;
+                } else {
+                    timeFrozenCounter = 0;
+                }
+            }
+
+            // If frozen for > 5 seconds while playing, trigger refresh
+            if (timeFrozenCounter > 5) {
+                clearInterval(this.detectionInterval);
+                this.refreshSession();
+            }
+
+            // Check for overlay every 2 seconds
+            if(timeFrozenCounter % 2 === 0) {
+                if(this.checkOverlay()) {
+                     clearInterval(this.detectionInterval);
+                     this.refreshSession();
+                }
+            }
+
+        }, 1000);
+    },
+
+    // --- FULLSCREEN LAUNCHER LOGIC ---
+    toggleLauncher() {
+        const container = document.getElementById('yt-audio-container');
+        const miniPlayer = document.getElementById('mini-player');
+        if (!container) return;
+
+        if (!State.preferences.fullscreenLauncher) {
+            // Turn OFF: Revert to standard
+            container.classList.remove('fixed', 'inset-0', 'z-50', 'top-0', 'left-0');
+            container.style.height = '200px'; // Reset height
+            container.style.background = 'transparent';
+            document.body.classList.remove('overflow-hidden'); // Re-enable scroll
+            UI.toast("Launcher Mode: OFF");
+        } else {
+            // Turn ON: Fullscreen Immersion
+            UI.togglePlayer(true); // Show player first
+            
+            // Force Fullscreen API
+            if (document.documentElement.requestFullscreen) {
+                document.documentElement.requestFullscreen().catch(err => console.log('Fullscreen denied'));
+            }
+
+            // CSS Styling to make it look like a "Launcher" (Black bg)
+            container.classList.add('fixed', 'inset-0', 'z-50', 'top-0', 'left-0', 'bg-black');
+            container.style.height = '100vh'; // Force full height
+            
+            // Hide other UI (Optional, for immersion)
+            document.body.classList.add('overflow-hidden');
+            UI.toast("Launcher Mode: ON");
+        }
+    }
+};
+
 // --- LOGGING & DEV TOOLS ---
 const Log = {
     history: [],
@@ -109,22 +688,22 @@ const DevTools = {
                 padding: 2rem;
             ">
                 <div style="
-                    width: 80px; height: 80px; border: 2px solid #ef4444; border-radius: 50%;
+                    width: 80px; height: 80px; border: 2px solid #cabfbfff; border-radius: 50%;
                     display: flex; align-items: center; justify-content: center; margin-bottom: 2rem;
                     box-shadow: 0 0 30px rgba(239, 68, 68, 0.4); animation: pulse 2s infinite;
                 ">
-                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#cabfbfff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
                         <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
                     </svg>
                 </div>
-                <h1 style="font-size: 2rem; font-weight: 900; letter-spacing: -1px; margin-bottom: 0.5rem; color: #ef4444;">SYSTEM LOCKOUT</h1>
+                <h1 style="font-size: 2rem; font-weight: 900; letter-spacing: -1px; margin-bottom: 0.5rem; color: #cabfbfff;">SYSTEM LOCKOUT</h1>
                 <p style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 2px; color: #52525b; margin-bottom: 3rem;">Security Violation Detected</p>
                 
                 <div style="background: #18181b; padding: 1.5rem; border-radius: 12px; border: 1px solid #27272a; max-width: 400px; width: 100%;">
                     <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; font-size: 0.75rem; color: #a1a1aa;">
                         <span>ERROR CODE</span>
-                        <span style="font-family: monospace; color: #ef4444;">0xSEC_INSPECT</span>
+                        <span style="font-family: monospace; color: #cabfbfff;">0xSEC_INSPECT</span>
                     </div>
                     <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; font-size: 0.75rem; color: #a1a1aa;">
                         <span>TIMESTAMP</span>
@@ -232,12 +811,1686 @@ const State = {
     // Runtime flags
     userInteractingWithLyrics: false,
     lyricsScrollTimeout: null,
-    lastTabSwitch: Date.now()
+    lastTabSwitch: Date.now(),
+    fullscreenLauncher: false
 };
 
 
-
 const LINK_DB = {
+    "kendrick lamar squabble up": "NYH6Oa4PXlY",
+"kendrick lamar tv off": "U8F5G5wR1mk",
+"kendrick lamar luther": "HfWLgELllZs",
+"kendrick lamar count me out": "6nTcdw7bVdc",
+"not like us": "T6eK-2OQtew",
+"future metro boomin kendrick lamar like that": "N9bKBAA22Go",
+"kendrick lamar peekaboo": "cbHkzwa0QmM",
+"dna kendrick lamar": "uX6uBHPGfSs",
+"kendrick lamar wacced out murals": "YwUQ_5iV9pY",
+"poetic justice": "XWQJdnmpnhc",
+"kendrick lamar cartoons cereal feat gunplay": "xy_UAmjMQXo",
+"euphoria": "NPqDIwWMtxg",
+"kendrick lamar adhd": "QjlFqgRbICY",
+"kendrick lamar adhd": "VOL0-EE3ieY",
+"kendrick lamar not like us": "H58vbez_m4E",
+"swimming pools drank": "X0sVhnP15z8",
+"kendrick lamar rich spirit": "hl3-ZPg-JAA",
+"kendrick lamar n95": "XEV4x7xEprw",
+"kendrick lamar i": "jltN3fLFmTQ",
+"alright": "JocAXINz-YE",
+"kendrick lamar bitch dont kill my vibe explicit": "GF8aaTu2kg0",
+"kendrick lamar bitch dont kill my vibe": "LiaVWUI44Og",
+"kendrick lamar untitled 05 lovibe remix audio only": "BfU5hszDP2o",
+"kendrick lamar rich spirit": "toBTPGfurLc",
+"kendrick lamar hey now": "9PumlOWjXMM",
+"money trees": "HJNa9Ih3haA",
+"kendrick lamar prayer unreleased trke eviri": "8I0zfDPh6MA",
+"dj mixbestmixkendrick lamar best mix greatest hits 2023 kendricklamar djmix": "xfZ0QeibtKM",
+"kendrick lamar poetic justice explicit ft drake": "yyr2gEouEMM",
+"kendrick lamar money trees feat jay rock": "smqhSl0u_sI",
+"schoolboy q collard greensft kendrick lamar": "OGp4RvqlSPM",
+"kendrick lamar alright official music video": "Z-48u_uWMHY",
+"kendrick lamar count me out": "5GhhVHpPR_M",
+"lil peep downtown": "39Abw0bVM2M",
+"kendrick lamar swimming pools drank": "B5YNiCfWC3A",
+"kendrick lamar heart pt 6": "m-PO1_fzxVM",
+"pride": "pRGmFiEyr0A",
+"pride": "J87pJrxvJ5E",
+"kendrick lamar untitled 05 lovibe remix": "VCI46yZptEU",
+"aap rocky i smoked away my brain im god x demons mashup ft imogen heap clams casino": "AT9JoIv2kss",
+"daniel caesar superpowers": "rScwLoES2bM",
+"playboi carti evil j0rdan": "zTKheLpo4nQ",
+"forever ever feat young thug reese laflare": "XYb1mdGu5aQ",
+"playboi carti evil j0rdan official visualizer": "VcRc2DHHhoM",
+"ken carson ss": "TMzs6GvsZXU",
+"playboi carti the weeknd rather lie": "fYD7YsSRHOY",
+"playboi carti olympian": "mj4yh7YrwfE",
+"playboi carti toxic with skepta": "U6jeOBSGI6Q",
+"playboi carti hba": "QTLqujvTGrg",
+"kendrick lamar sza all the stars": "JQbjS0_ZfJ0",
+"kendrick lamar poetic justice feat drake": "oYx4LKK9LhU",
+"the recipe ft dr dre bonus track kendrick lamar good kid maad city deluxe": "4Poddz658pM",
+"miguel how many drinks ft kendrick lamar": "CvBufVFuERM",
+"all the stars": "ju4KQT0wL0I",
+"the weeknd sidewalks ft kendrick lamar": "sK-T-cmznY8",
+"future mask off remix ft kendrick lamar": "nrjPzPc1JiY",
+"baby keem kendrick lamar family ties": "v6HBZC9pZHQ",
+"sia the greatest ft kendrick lamar": "sG6aWhZnbfw",
+"kendrick lamar die hard ft blxst amanda reifer": "Lx3MGrafykU",
+"kendrick lamar not like us drake diss": "3wkNLqetX0M",
+"kendrick lamar loyalty ft rihanna": "Dlh-dzB2U4Y",
+"kendrick lamar backseat freestyle explicit": "EZW7et3tPuQ",
+"kendrick lamar sza luther": "sNY_2TEmzho",
+"loyalty ft rihanna kendrick lamar damn": "2-IF9HXUlk0",
+"kendrick lamar father time ft sampha": "toEW7_-pvOY",
+"travis scott goosebumps ft kendrick lamar": "Dst9gZkq1a8",
+"chris brown autumn leaves explicit ft kendrick lamar": "undkbBJLa-Y",
+"love iab sounds edit kendrick lamar ft zacari": "GdSabJXr59A",
+"humble": "ov4WobPqoSA",
+"sza 30 for 30 feat kendrick lamar": "NEnephbahLA",
+"travis scott goosebumps ft kendrick lamar": "_9XaXHD3680",
+"kendrick lamar not like us": "2WAN6crr3HQ",
+"kendrick lamar dodger blue": "c7y2ziOBA1s",
+"lil wayne mona lisa ft kendrick lamar": "ybfgomoY8Xs",
+"all the stars kendrick lamar feat sza clean version": "YxCUbt0wtFo",
+"kendrick lamar sza luther": "l0wJqJT3gh8",
+"kendrick lamar count me out x zeldas lullaby kendrick did you hear that kendrick tiktok version": "bekr08CBWCE",
+"pray for me": "T0pYq_Saf7g",
+"sza 30 for 30 ft kendrick lamar": "ye-tjwqotEA",
+"kendrick lamar love ft zacari": "SyYUdbaddQU",
+"kendrick lamar peekaboo": "OlrqrcKRuEQ",
+"kendrick lamar money trees": "_xCVvUVPV7c",
+"schoolboy q collard greens explicit official music video ft kendrick lamar": "_L2vJEb6lVE",
+"kendrick lamar man at the garden": "wiALRpD0Ztg",
+"kendrick lamar rigamortis": "yh6QxtRpSH8",
+"kendrick lamars apple music super bowl halftime show": "KDorKy-13ak",
+"jhen aiko stay ready what a life ft kendrick lamar": "QbskDhzKWk8",
+"kendrick lamar reincarnated": "Ek7UvQPCQnE",
+"kendrick lamar savior ft baby keem sam dew": "HTAQxUXq674",
+"kendrick lamar sza all the stars": "yvOh7vVqlaE",
+"kendrick lamar gnx": "8sfLudpdZPU",
+"kendrick lamar performs not like us at super bowl lix": "TvqpiUlMsB4",
+"jay rock kendrick lamar future james blake kings dead": "VwAnsAUYnw4",
+"clipse kendrick lamar pusha t malice chains whips": "qyrr02a4vwY",
+"kendrick lamar gloria": "G5YwhjCywvw",
+"kendrick lamar humble": "tvTRZJ-4EyI",
+"taylor swift bad blood ft kendrick lamar": "QcIy9NiNbmo",
+"kendrick lamar humble": "jBvrQmtn4aQ",
+"kendrick lamar united in grief": "tvNSXS4x9nc",
+"kendrick lamar j cole trench stories music video": "GGZMXuwrHic",
+"kendrick lamar rich interlude": "ll6S032PHNs",
+"love": "w6NxHj3L_XY",
+"kendrick lamar mother i sober ft beth gibbons of portishead": "Vo89NfFYKKI",
+"kendrick lamar humble skrillex remix": "gh72dXr4fTM",
+"alicia keys its on again ft kendrick lamar": "T9B3z-8P_7s",
+"kendrick lamar playlist": "9EzAjlyyQA8",
+"kendrick lamar adhd": "mKBRNn-D2Sk",
+"kendrick lamar savior interlude": "ROUFkWceDRM",
+"dedication feat kendrick lamar nipsey hussle victory lap": "RXmfYM6dSFg",
+"kendrick lamar not like us clean": "Yar-WWUnDlw",
+"kendrick lamar mirror": "OqR71_BYS-c",
+"kendrick lamar king kunta": "hRK7PVJFbS8",
+"kendrick lamar tv off": "8_e4lHJaBvg",
+"kendrick lamar silent hill ft kodak black": "00QQWJIFxDA",
+"kendrick lamar not like us clean lyrics": "d6WiBXd3xfI",
+"kendrick lamar crown": "eL1L287YbkQ",
+"kendrick lamar sza luther": "ITQUzVJvhU0",
+"kendrick lamar watch the party die": "zISYJ-bT7DQ",
+"playboi carti kendrick lamar good credit": "58JU9solXFw",
+"kendrick lamar humble": "wL_xmuij6lA",
+"squabble up": "7QyDL3zQ-2I",
+"rich the kid new freezer ft kendrick lamar": "HLKYz1r23Lo",
+"kendrick lamar n95": "zI383uEwA6Q",
+"game the city ft kendrick lamar": "TsMMuXZZUm8",
+"kendrick lamar sza all the stars": "GfCqMv--ncA",
+"kendrick lamar swimming pools": "sDgPvbt5nQ0",
+"beyonce freedom feat kendrick lamar": "ZDyqv5AJChk",
+"luther kendrick lamar sza clean": "9Vnbsuny2LI",
+"love ft zacari kendrick lamar damn": "3SaVOpgSa6M",
+"kendrick lamar performs not like us at super bowl": "b2Zq5KM2b24",
+"kendrick lamar purple hearts ft summer walker ghostface killah": "0kS-MtxPr9I",
+"kendrick lamar tv off clean": "qtrYfIxHU7A",
+"kendrick lamar mr morale ft tanna leone": "SdwEIPD1bEw",
+"the weeknd kendrick lamar pray for me": "K5xERXE7pxI",
+"maroon 5 dont wanna know ft kendrick lamar": "OxPv8mSTv9U",
+"baby keem kendrick lamar range brothers": "IkuBYRUwWdg",
+"kendrick lamar not like us official music video": "c82oYGeWTx4",
+"swimming pools drank extended version": "UEJTaReI1ls",
+"squabble up": "fuV4yQWdn_4",
+"drake vs kendrick lamars outfit": "1dNH4VJcB2I",
+"jid top 5 rappers jid dreamville jcole jidtypebeat kendricklamar": "p38iVlbzjtM",
+"god": "bBTeAg5CFRA",
+"the heart part 4 kendrick lamar iv": "lbYIUnV8u7E",
+"kendrick lamar worldwide steppers": "AxNXkI94tbY",
+"kendrick lamar money trees feat jay rock explicit": "tVyw9H2Iuyw",
+"untitled 05 remix is carrying 2025 creed edit kendricklamar audio best rap songs": "zzw4-rEXxA0",
+"kendrick lamar auntie diaries": "-vrhf1P9zwc",
+"kendrick lamar we cry together ft taylour paige": "C_s9JJnqQqM",
+"mac miller god is fair sexy nasty feat kendrick lamar": "YbbaJIpkGMs",
+"element kendrick lamar damn": "bqqUvduHONk",
+"hero in all of us spiderman edit kendrick lamar sza all the stars": "8iFANNbAiew",
+"everyone at super bowl screamed a minor during kendrick lamars not like us kendricklamar nfl": "JzHJ6L3dbY8",
+"kendrick lamar superbowl halftime show audio version": "2slJAoSMc7Q",
+"sza 30 for 30 clean lyrics feat kendrick lamar": "w-nDeRqPNos",
+"gnx": "D7liwdjvhWc",
+"loyalty": "sN8H2ypmzlA",
+"kendrick lamar not like us drake diss": "VJdHSaWd-EU",
+"kendrick lamar truly served with his not like us performance on super bowl halftime": "aShh57wRkaA",
+"kendrick lamar sza all the stars newmusic lyrics aesthetic fypp music": "XxDwkra7MQk",
+"playboi carti backd00r feat kendrick lamar jhene aiko": "4LgZZVGvEyE",
+"kendrick lamar dna lyrics": "GM1ryY_KAH0",
+"kendrick lamar 616 in la": "T42TkZW6pc8",
+"kendrick lamar untitled 05 lovibe remix extended beat intro song": "dWq2ggIR_wE",
+"aap rocky fkin problems ft drake 2 chainz kendrick lamar": "liZm1im2erU",
+"eminem praises kendrick lamar": "9AjvndD2_mA",
+"kendrick lamar sza luther spiderverse": "FZ9wv1unnRg",
+"kendrick lamar love ft zacari 8d audio": "TomyxNFr8BI",
+"kendrick lamar euphoria drake diss": "_sJ79aDQTeQ",
+"pusha t nosetalgia ft kendrick lamar music video": "UgGZJxI-fFA",
+"luther kendrick lamar ft sza 8d audio": "yxR-DwNd580",
+"falsehood kendrick lamar un": "QQ1HtSeZvLI",
+"kendrick lamar swimming pools pool full of liquor and i dive in it lyrics swimmingpools shorts": "h1fhfFWl99g",
+"pusha t f kendrick lamar nosetalgia audio explicit version": "Qaxly5O9vNI",
+"future kendrick lamar like that drake j cole diss": "02dpdLmpu3Q",
+"kendrick lamar rich spirit n95 live from saturday night live": "SZcupt0Yqaw",
+"dna lyrics kendrick lamar": "ecUlXz6aQwY",
+"the best superman superman edit kendrick lamar and sza all the stars": "xAAYQo3LwSw",
+"united in grief kendrick lamar shorts lyrics fyp viral lipsync songs4u_": "Xd0P1Cf56lM",
+"drake vs kendrick the beef that changed everything": "yIrQhtNVYAc",
+"sza snooze": "Sv5yCzPCkv8",
+"mustardddddmustard kendricklamar mustarddd invincible style edit": "PlNYZ4pCZ6U",
+"swimming pools kendrick lamar lyrical edit swimmingpools kendricklamar": "tNCdEm_dKWA",
+"j cole vs kendrick lamar hits best 1hour hiphop mix best of j cole and kendrick dj santana": "zQAWmDynHxA",
+"kendrick is listening 67 kid scp 067 edit analog horror funk super slowed": "npdv2HtcwG4",
+"kendrick lamar pride slowed": "IHGAX4IYREw",
+"travis scott on kendrick lamars goosebumps feature": "13gsWbb5JNc",
+"peekaboo kendrick lamar": "Ux_Rk8rRdH8",
+"son of king tchalla black panther edit kendrick lamar all the stars ft sza slowed": "32nzdU3AXIg",
+"jidenna classic man remix ft kendrick lamar": "SMeo6CykNrg",
+"the symbol of hope superman edit kendrick lamar sza all the stars slowed": "o3QiZWQyJHs",
+"kendrick lamar alright": "1J7gDCD5vHg",
+"not like us kendrick lamar": "eWg6c6Gwdn8",
+   "kanye west runaway video version ft pusha t": "Bm5iA4Zupek",
+"kanye west cant tell me nothing": "E58qLXBfLrs",
+"kanye west flashing lights ft dwele": "ila-hAUXR5U",
+"flashing lights": "ZAz3rnLGthg",
+"mrs officer": "buyMOuKDG74",
+"lil wayne surf swag": "eRRKlXbIqHY",
+"a milli": "NdgpcwqBSPg",
+"lil wayne she will visualizer ft drake": "Fw3H8R5hHEY",
+"let it all work out": "TKJJiF8QJRc",
+"lil wayne im single": "GQxWtv_UnU4",
+"lil wayne fireman": "tkScazS1Og8",
+"lil wayne mona lisa ft kendrick lamar": "ybfgomoY8Xs",
+"lil wayne love me explicit versionclosed captioned ft drake future": "KY44zvhWhp4",
+"lil wayne uproar visualizer ft swizz beatz": "vGtfSaGYJQA",
+"lil wayne mr carter visualizer ft jayz": "MZwRhVvz768",
+"a milli": "xX-N3B8ulnI",
+"lil wayne a milli": "4jQFIiFF9mc",
+"nicki minaj truffle butter ft drake lil wayne": "EvlQOjK0MPk",
+"nicki minaj drake lil wayne seeing green": "_Q7rcUm0Dro",
+"lil wayne krazy carterv": "mzCm9CXwBTA",
+"lil wayne kant nobody ft dmx": "zRegqIGwfbE",
+"ariana grande let me love you ft lil wayne": "xbiv2QHcGYU",
+"dababy featuring lil wayne lonely": "VHt-dENViA4",
+"lil wayne mona lisa featuring kendrick lamar": "faOKi80p1BE",
+"lil wayne how to love official music video": "y8Gf4-eT3w0",
+"eminem no love explicit version ft lil wayne": "KV2ssT8lzj8",
+"you": "gfoD2ILKEYk",
+"lloyd ft lil wayne you": "FV__1ZNjjR0",
+"lollipop": "xmj2QSbRZLE",
+"dej loaf me u hennessy ft lil wayne": "hjHXY-s-9-8",
+"lil wayne dont cry ft xxxtentacion": "t61T0Wu7slg",
+"6 foot 7 foot": "FcRBUd_gJBg",
+"love me": "X_uoq5xCaFc",
+"lil wayne blunt blowin visualizer": "aFF4nZdmKXM",
+"lil wayne bigxthaplug hiphop visualizer ft jay jones": "uWmbR8W-Kzw",
+"forever ever feat young thug reese laflare": "XYb1mdGu5aQ",
+"lil peep nuts feat rainy bear": "osPq9Yb8xm8",
+"lil wayne something different official music video": "W2WRE5pxZ7A",
+"drake kanye west lil wayne eminem forever explicit version official music video": "eDuRoPIOBjE",
+"lil wayne 6 foot 7 foot ft cory gunz explicit official music video": "c7tOAGY59uQ",
+"lil wayne a milli": "1Vf4mMCpNY0",
+"lil peep the brightside": "xAMgQQMZ9Lk",
+"lil peep lederrick teen romance": "qQX-pHfnFsc",
+"lil wayne john ft rick ross explicit official music video ft rick ross": "3fumBcKC6RE",
+"lil wayne run this town": "9YWsOoOhwLM",
+"lil peep nuts": "_xRN3dTg9s0",
+"playboi carti evil j0rdan": "zTKheLpo4nQ",
+"lil wayne she will ft drake": "_7nYuyfkjCk",
+"juice wrld let me know i wonder why freestyle": "swDam6Hrsm8",
+"lil peep xxxtentacion falling down": "-jRKsiAOAA8",
+"lil peep walk away as the door slams feat lil tracy": "ovvZ2f6ipXw",
+"playboi carti the weeknd rather lie": "fYD7YsSRHOY",
+"lil peep lil tracy castles": "As1bpICMhzs",
+"playboi carti evil j0rdan official visualizer": "VcRc2DHHhoM",
+"lil wayne i feel like dying": "cykGnl1KvcM",
+"playboi carti like weezy official visualizer": "C217vygclrk",
+"playboi carti olympian": "mj4yh7YrwfE",
+"lil baby playboi carti skooly lets do it official music video": "Av4AsFPeQ9E",
+"the game my life ft lil wayne": "udxZ9zkDzpo",
+"chris brown loyal ft lil wayne tyga": "JXRN_LkCa_o",
+"lil wayne right above it visualizer ft drake": "b0wbCtrGjXA",
+"dj khaled im on one explicit version ft drake rick ross lil wayne": "Z09lYqdxqzo",
+"dj khaled god did ft rick ross lil wayne jayz john legend fridayy": "QugLZCp74GE",
+"chris brown loyal ft lil wayne tyga": "RCtMT8vlM6o",
+"lil wayne love me ft drake future": "ebhdNQUGjiM",
+"lil wayne got money ft tpain official music video ft tpain": "1ohYsK5Y8Dc",
+"lil wayne got money feat tpain explicit version": "ZURis3A6FYM",
+"lil wayne she will ft drake": "QMPQa7_lXOE",
+"lil wayne feat bruno mars mirror": "97xukmZfiGU",
+"lil wayne mahogany": "6uIsw1pM9bE",
+"mario lil wayne main one official music video ft tyga": "lxgzbRXQELQ",
+"love": "w6NxHj3L_XY",
+"kendrick lamar mother i sober ft beth gibbons of portishead": "Vo89NfFYKKI",
+"lil wayne mirror ft bruno mars official music video ft bruno mars": "OZLUa8JUR18",
+"chris brown possessive ft lil wayne bleu": "IEk-BaFsVUk",
+"mario lil wayne main one ft tyga": "iPpj4lNxe6g",
+"lil wayne love me audio ft drake future": "PTAGB-N84Yo",
+"lil wayne bring it back feat mannie fresh": "6Lg5wG0TwkQ",
+"youngboy never broke again my window feat lil wayne": "vnG2aQUJFwI",
+"2 chainz lil wayne usher transparency": "FJcJmiHJ-pU",
+"lil wayne for nothing dedication 6 reloaded d6 reloaded": "gWuDKtHXGh0",
+"chris brown gimme that remix official hd video ft lil wayne": "3yl-5FOZcr0",
+"rick ross thug cry feat lil wayne": "Sy_45F8VfI0",
+"lil wayne nightmares of the bottom visualizer": "w7NHVRDQ-As",
+"drake miss me ft lil wayne": "fuqIsXLSeAM",
+"lil wayne v8 no ceilings 3": "7ze5xTiaRuQ",
+"lil wayne how to love": "wkQxgDv4q3I",
+"jay sean down ft lil wayne": "DirKD1ecaw4",
+"juicy j bandz a make her dance ft lil wayne 2 chainz": "1Ad5hKerKsE",
+"lil wayne lollipop official music video ft static": "2IH8tNQAzSs",
+"akon im so paid official music video ft lil wayne young jeezy": "tnAbKuGss4Y",
+"dj khaled im the one ft justin bieber chance the rapper lil wayne lyrics lyric video": "158plNHX4vw",
+"the question mac miller ft lil wayne": "UyHk9yRQV7E",
+"kendrick lamar tv off clean": "qtrYfIxHU7A",
+"kendrick lamar mr morale ft tanna leone": "SdwEIPD1bEw",
+"the weeknd kendrick lamar pray for me": "K5xERXE7pxI",
+"maroon 5 dont wanna know ft kendrick lamar": "OxPv8mSTv9U",
+"jennifer lopez im into you ft lil wayne": "IgLcQmlN2Xg",
+"kodak black codeine dreaming feat lil wayne": "g7_uKDsv7HM",
+"destinys child feat ti lil wayne soldier": "13fO4pukMQY",
+"lil wayne vizine wshh exclusive": "m-WXZWslgUI",
+"rich gang tapout ft lil wayne birdman mack maine nicki minaj future": "OGtlq-cvIS4",
+"tyler the creator sticky feat glorilla sexyy red lil wayne letralegendado": "mKzg_ZdDSRc",
+"lloyd you ft lil wayne": "GmJqTraI9oQ",
+"dj khaled im on one feat lil wayne drake rick ross": "b6ByREoAE8I",
+"jay sean down feat lil wayne": "UQ9e6XyQWr4",
+"lil wayne bank account dedication 6": "sesUrzFWlQ0",
+"that mexican ot lil wayne baby mad at me": "ezg9TfKDY_I",
+"lil wayne yeezy sneakers dedication 6": "EpAP1niP0Uo",
+"lil wayne 6 foot 7 foot ft cory gunz official hd the carter 4": "W0psZfzGgQo",
+"lil wayne shoes": "2JqHU-NXNuY",
+"nicki minaj drake lil wayne no frauds": "VkXjvHfP3MM",
+"lil wayne sorry 4 the wait": "e_fZbUpGplA",
+"morgan wallen miami feat lil wayne and rick ross": "UR3lYl9xcLk",
+"my nigga ft lil wayne rich homie quan meek mill nicki minaj remix": "6l7J1i1OkKs",
+"im into you jennifer lopez feat lil wayne": "KQqU2w_TWi8",
+"pop bottles birdman ft lil wayne": "ayAHQ310t68",
+"lil wayne way of life official music video ft big tymers tq": "h9k7O1FigE0",
+"kendrick lamar auntie diaries": "-vrhf1P9zwc",
+"pusha t nosetalgia ft kendrick lamar music video": "UgGZJxI-fFA",
+"luther kendrick lamar ft sza 8d audio": "yxR-DwNd580",
+"falsehood kendrick lamar un": "QQ1HtSeZvLI",
+"lil wayne lollipop visualizer": "dobDE8ThwXI",
+"lloyd you ft lil wayne": "pDkHiQhhROo",
+"lil wayne big bad wolf d6 reloaded": "lYATz3STgew",
+"blunt blowin": "XQCXqvLRn28",
+"lil wayne drop the world ft eminem official music video ft eminem": "ErCAOMi5EGM",
+"lil wayne wiz khalifa imagine dragons w logic ty dolla ign ft x ambassadors sucker for pain": "-59jGD4WrmE",
+"sucker for pain imagine dragons lil wayne wiz khalifa": "IO2aTF7ygPE",
+"lil wayne sick dedication 6 reloaded d6 reloaded": "Dd0cAePq_p0",
+"dj khaled jealous ft chris brown lil wayne big sean": "4UoOOBKY8lY",
+"cassie ft lil wayne official girl": "9aCVfWJ76gQ",
+"lil wayne 6 foot 7 foot ft cory gunz": "p2L6WGpZM5A",
+"the game celebration ft chris brown tyga lil wayne wiz khalifa": "0zFebU-kFNk",
+"lil wayne piano trap": "-ZOjfbqjLdE",
+"lil wayne twist made me": "BvYebQ93nl0",
+"lil wayne one big room": "er95xeiwmuo",
+"lil wayne life is good no ceilings 3": "KTdRPXYaMkY",
+"kelly rowland ice ft lil wayne": "YCF6X84PUao",
+"chance the rapper lil wayne smino tree": "2_oIlRNTYfI",
+"lil wayne glory": "Hs9eTu81dVE",
+"lil wayne sum 2 prove no ceilings 3 b side": "38VllwfZyAQ",
+"moneybagg yo lil wayne ashanti wockesha remix": "z6uCSmRw1is",
+"lil wayne president carter visualizer": "xTxB3BqPoAM",
+"2 chainz lil wayne crown snatcher": "ZqpGoXaYZzk",
+"lil wayne ft rick ross drake she will remix hdcdq": "--iVH019SvI",
+"jid kenny mason feat lil wayne just in time ft lil wayne": "gXerx0erltc",
+"cassie feat lil wayne official girl official music video": "NXrLrg7U_6Y",
+"lil wayne throw it in": "VSFSbQ6N8EY",
+"all falls down": "W0VnPiyXSRQ",
+"kanye west good life ft tpain": "FEKEjpTzB0Q",
+"kanye west flashing lights directors cut ft dwele": "GG5cE14G2Gg",
+"kanye west all falls down ft syleena johnson": "8kyWDhB_QeI",
+"i wonder": "MxEjnYdfLXU",
+"eminem cleanin out my closet": "Ful8uFk6-Og",
+"eminem the monster ft rihanna": "ZDXXi19_7iE",
+"eminem berzerk": "359na4NeaVA",
+"eminem guilty conscience 2": "5yeGhfL0zCU",
+"till i collapse": "Obim8BYGnOE",
+"eminem without me": "pyb13N80DZQ",
+"the way i am": "82lB-gI-uuQ",
+"eminem fuel feat jid": "xVuYQCa9saw",
+"eminem habits feat white gold": "BgqD-Bn5Quk",
+"beautiful": "4HuTdB0MqoE",
+"houdini": "soNLLPokjC4",
+"godzilla feat juice wrld": "9XvXF1LrWgA",
+"eminem rap god": "S7cQ3b0iqLo",
+"lucky you feat joyner lucas": "1arz9Q9qBas",
+"logic homicide feat eminem": "mfqsEpjEtrw",
+"love the way you lie": "acMtKzTbAAU",
+"eminem guts over fear ft sia": "iH0WwlQd5-I",
+"when im gone": "HnEwvZYdAlE",
+"eminem evil": "AuQ36zwFA3s",
+"eminem space bound": "JByDbPn6A1o",
+"the real slim shady": "1-M4JrFcrNY",
+"eminem somebody save me feat jelly roll": "p5QWoWZXu14",
+"eminem godzilla ft juice wrld official music video": "r_0JjYUe5jo",
+"3 am explicit by eminem eminem": "TwAJO7uDwJg",
+"we made you by eminem eminem": "EWMLMc3ES3I",
+"darkness": "skn7T_XPQnY",
+"eminem my name is official music video": "sNPnbI1arSE",
+"eminem tobey feat big sean babytron official music video": "CanCZktm0TQ",
+"akon smack that featuring eminem": "J6t_BU2IjXE",
+"8 mile eminem final rap battle hd": "X9-hxfcklGs",
+"eminem mockingbird official music video": "S9bCLPwzSC0",
+"eminem snoop dogg from the d 2 the lbc official music video": "RjrA-slMoZ4",
+"eminem lose yourself hd": "_Yhyp-_hX2s",
+"eminem role model": "ubEublECnMU",
+"eminem without me": "-8xhmV3JoG4",
+"the ringer": "ACNgFW50EbU",
+"eminem stan long version ft dido": "gOMhN-hfMtY",
+"eminem smack you suge knight ja rule diss lyrics": "Vf9MoP-zCuY",
+"lil peep right here feat horse head": "m-44PIocS_4",
+"eminem just lose it official music video": "9dcVOmEQzKA",
+"eminem beautiful official music video": "lgT1AidzRWM",
+"deja vu": "NxkSEJ6Mv3M",
+"lil peep nuts feat rainy bear": "osPq9Yb8xm8",
+"go to sleep": "r2GEb4MrkvU",
+"king von armed dangerous": "tBKYI3-3lMg",
+"eminem without me official music video": "YVkUvmDQ3HY",
+"eminem you dont know official music video ft 50 cent cashis lloyd banks": "ngH0fkiNo-g",
+"killshot": "FxQTY-W6GIo",
+"lil peep star shopping": "m8QQR-wQA0I",
+"juice wrld let me know i wonder why freestyle": "swDam6Hrsm8",
+"eminem venom": "8CdcCD5V-d8",
+"eminem venom": "qtLXOKC1SHE",
+"eminem my name is explicit": "0mNUa1m3RUI",
+"dr drei need a doctor ft eminem skylar grey": "rXc_XMKkt7Y",
+"business": "P05bTId-92A",
+"lose yourself": "zlJ0Aj9y67c",
+"dr dre forgot about dre feat eminem": "Ajbz0x11w-Q",
+"stan": "7u1Jj6aRIec",
+"mockingbird": "FjVjHkezTIM",
+"eminem dr dre forgot about dre explicit official music video ft hittman": "QFcv5Ma8u8k",
+"eminem superman clean version ft dina rae": "8kYkciD9VjU",
+"eminem phenomenal audio only": "Ex55lbcS4wc",
+"eminem love the way you lie ft rihanna": "uelHwf8o7_U",
+"smack that": "5HZ7QBnMX34",
+"eminem lose yourself": "tR1ECf4sEpw",
+"eminem houdini official music video": "22tVWwmTie8",
+"fall": "jsur8561_1A",
+"not afraid": "NMj0NnKVMwo",
+"eminem ft 50 cent is this love 09": "qaba5mffrcw",
+"eminems hardest song to rap": "TzKVRsbvZaQ",
+"marsh": "0WkIZwM5_vc",
+"eminem tobey feat big sean babytron": "9xn0OHEZZ8Q",
+"eminem darkness": "RHQC4fAhcbU",
+"lose yourself from 8 mile soundtrack": "Wj7lL6eDOqc",
+"eminem killer remix ft jack harlow cordae": "FVeZcM6tBQU",
+"eminem fall official music video": "MfTbHITdhEI",
+"juice wrld eminem benny blanco lace it": "T4CY4wVqhPU",
+"eminem ft rihanna the monster explicit": "EHkozMIXZ8w",
+"eminem river ft ed sheeran": "3BXDsVD6O10",
+"eminem not afraid": "j5-yKhDd64s",
+"the weeknd ft eminem the hills remix": "E5ENO6ftxg4",
+"the real slim shady by eminem eminem": "Y8ZI1uc6iBM",
+"eminem stan short version ft dido": "aSLZFdqwh7E",
+"bump heads": "25aDpUpoj4k",
+"eminem headlights ft nate ruess": "N8zuC0_9jXY",
+"eminem love the way you lie ft rihanna": "mD57Bbv53Yw",
+"eminem the real slim shady": "rkqMbsmLrtA",
+"superman": "lPlePBCS6Ic",
+"eminem everybodys looking at me": "IKU-yswi8HU",
+"eminem superman dirty version": "bJQhFYJvtx4",
+"till i collapse": "Pi3_Zs-oRUo",
+"survival audio only": "o1Af8RrmLPY",
+"eminems the monster was an accident": "twDyXcFWVoI",
+"hailies song": "tD5oQQ-CQ4E",
+"ll cool j murdergram deux ft eminem": "50Tl8E0Vvms",
+"eminem sing for the moment official music video": "D4hAVemuQXY",
+"eminem sing for the moment hq audio": "ExcQV4u4BGY",
+"jessie reyez coffin ft eminem": "TfBaVaubcyw",
+"eminem guts over fear ft sia": "-0zo3vbqJOE",
+"eminem reveals the truth behind stan": "Tw0uCnG58Is",
+"skylar grey polo g mozzy eminem last one standing lyric video": "4haurn3S8z8",
+"eminem godzilla lyric video ft juice wrld": "3qFvCPmee8U",
+"discombobulated": "kzxnrgelES8",
+"little engine": "trmoIfUVctQ",
+"eminem ice cube snoop dogg dr dre smoke 2025": "BT_E7AiO5G8",
+"eminem lose yourself": "3CZTuqxwiCk",
+"eminem lucifer feat sly pyper": "rkdLQ7HLLuU",
+"eminem not afraid": "anUz77ElBK4",
+"why eminem raps so fast": "ikLRFjJTlwI",
+"eminem temporary feat skylar grey": "drJ508gTslE",
+"akon smack that ft eminem": "J_UUmO7zcpU",
+"marshall mathers": "XGSrs0QIUAc",
+"eminem houdini": "fTMEMPA7eeA",
+"rosemary": "fZcAQ0kuw1s",
+"deftones change in the house of flies": "oSDNIINcK08",
+"deftones change in the house of flies official music video": "WPpDyIJdasg",
+"digital bath": "OeKgU13FHug",
+"deftones risk official visualizer": "ifN91YvHj7g",
+"deftones sextape official music video": "f0pdwd0miqs",
+"deftones cherry waves": "SGj-ORoxD8U",
+"deftones be quiet and drive far away hd remaster": "KvknOXGPzCQ",
+"deftones be quiet and drive far away": "dAW8CoH_lN0",
+"risk": "-1mH96_bVM0",
+"entombed": "gEXbHKAuHSg",
+"deftones private music full album": "PyNj9xxiA20",
+"mascara": "l1uXgWu-EiE",
+"deftones my own summer shove it lyrics": "VAHqzS5PcaU",
+"deftones my own summer official music video hd remaster": "XOzs1FehYOA",
+"passenger": "hPf97ci57bc",
+"deftones diamond eyes official lyric video": "gRlHBTYKyVg",
+"deftones ohms": "5XF7jcq1cB4",
+"dai the flu": "s1d9kGge47U",
+"deftones passenger official visualizer": "IjainiB8mk4",
+"deftones be quiet and drive far away": "j1ppqX3pEkU",
+"deftones my mind is a mountain": "cgh_jEm5twE",
+"diamond eyes": "eS8FBesGg9o",
+"deftones lmirl intro loop": "emYy14t_2UA",
+"sextape": "YrdWy3rl3Sk",
+"l mirl deftones slowed best part looped": "jsG52Gl6rU8",
+"deftones 7 words official music video": "cqZaWj6haOg",
+"rare deftones be quiet and drive far away acoustic video very rare": "Oi8V4G6FSlQ",
+"deftones change audio edit": "GZWaitS1gZI",
+"deftones change slowed down": "iGx2JmbDLQA",
+"deftones cherry waves": "C2hvf7aHwuY",
+"deftones change slowed and reverbed": "dUW89H95Ufg",
+"deftones slowed muffled playlist": "Hsn4rgL9SR0",
+"beware deftones": "aYbFEE0UtX0",
+"engine no 9": "OC8x9_App2I",
+"deftones hole in the earth official music video": "LnI_QIXU058",
+"deftones my own summer shove it": "YHRYsJX-02Y",
+"deftones around the fur full album": "T0Ojq_jGXTI",
+"root": "344xGZeoGhI",
+"deftones beware": "qhC58O1N-2E",
+"beauty school": "PAquwZoOT-U",
+"deftones milk of the madonna": "KDnKIryNPgQ",
+"deftones digital bath official music video": "O_IIAYZL1R4",
+"deftoneschange": "ZL4MGwlZuAc",
+"deftones entombed": "67oBykAKUuk",
+"deftones mascara": "mfBRKxQZ4Ng",
+"deftones hole in the earth 432hz": "13NfdLvKg5U",
+"deftones infinite source": "U_uVVO7eGic",
+"deftones infinite source": "2AHpJDqHuiM",
+"deftones genesis": "g81V6Uas5aw",
+"one weak": "T-De_zAKxwU",
+"deftones 976evil official visualizer": "y8Fy2HcuVcU",
+"headup": "vKznyaTWOVA",
+"deftones minerva official music video hd remaster": "mLa0-sQg1YM",
+"deftones heartswires": "NJbvSmRuV_w",
+"deftones i think about you all the time visualizer": "b09HHmPvliw",
+"deftones minerva": "TYTt0-LpLbE",
+"deftones risk": "sRmevF0zmcA",
+"deftones rx queen official visualizer": "XxWildqgiKk",
+"lucky you": "Ija2-DQz38g",
+"deftones bored": "wF8Y-DPZJU4",
+"deftones swerve city official music video 4k": "gvyHNyWfQRQ",
+"deftones ceremony official visualizer": "6DXqXPYj3-Y",
+"deftones tempest": "GIgNBxNvAJg",
+"deftones mein official music video": "WhstBxChY18",
+"deftones mascara": "kmTAmILKbN4",
+"deftones tempest official lyric video": "YImIvmtuHAE",
+"simple man 2005 remaster": "fXGp4wC6Ha0",
+"deftones playlist for hot girls": "KwbUbLBBfO0",
+"deftones phantom bride featuring jerry cantrell": "xSycaeY7qi4",
+"deftones beauty school official music video": "2bK4aeahcXc",
+"deftones beauty school": "uJcFlQajrMI",
+"deftones rocket skates official music video": "woR6ohiFeYE",
+"deftones back to school mini maggit official music video": "1gxZIL4zpIQ",
+"deftones feiticeira official visualizer": "C_0O2r8qU18",
+"deftones souvenir visualizer": "EujSHehKyfo",
+"deftones prayerstriangles": "JAmt6zN9vOk",
+"deftones change": "dj1AMcx-Izs",
+"deftones back to school mini maggit official music video live video warner vault": "lMPtIhAPnn4",
+"deftones ecdysis visualizer": "B8qbrHS3yTQ",
+"deftones ohms official music video": "KUDbj0oeAj0",
+"deftones smile remastered": "WwiHhifZIe8",
+"deftones urantia official visualizer": "QwkT3sL23Pk",
+"deftones smile lyric video from the unreleased deftones album eros": "rETGJHkZyhs",
+"deftones rosemary": "6Ii8E21rbvQ",
+"deftones xerces lyrics": "bDUJM5xxTqc",
+"deftones cxz visualizer": "QZQ34I553gY",
+"the chauffeur 2005 remaster": "EON3DnBbflQ",
+"deftones bored official music video": "EHGhjOEtpnc",
+"deftones genesis official music video": "fbp0bET06wc",
+"battleaxe": "Bc6HBENsXNE",
+"moana": "nmyW284Az7M",
+"minus blindfold": "fdfXcNCQjf4",
+"deftones 7 words": "tCl737BX_9I",
+"youve seen the butcher": "tfqU-XQmBSE",
+"what happened to you": "jPd3OUd2sw0",
+"deftones my mind is a mountain official music video": "eVqZrI9JE6Q",
+"deftones locked club visualizer": "HVmeLQN6qHo",
+"deftones sextape": "Yhp3QgdD6JM",
+"deftones doomed user": "IxE6kaNuNB8",
+"deftones metal dream visualizer": "nsGOxKEDJjc",
+"deftones my own summer": "vLjOwAPzt4o",
+"deftones hexagram official music video hd remaster": "yP4dFHSd-iw",
+"deftones sextape lyrics": "UmMaWLKGrpM",
+"flashing lights": "ZAz3rnLGthg",
+"all falls down": "W0VnPiyXSRQ",
+"cant tell me nothing": "Vcljvd4Ef_o",
+"jay z kanye west otis ft otis redding": "BoEKWtgJQAU",
+"jayz kanye west otis ft otis redding": "TWxXXcVQevI",
+"kanye west praise god": "9sJZOGxRxwM",
+"jesus walks": "f9wJBdFy6sQ",
+"bound 2": "5gjKuISTMRE",
+"kanye west bound 2": "wVRF3SqLUi0",
+"i wonder": "MxEjnYdfLXU",
+"kanye west jail": "IviYsgJXG5k",
+"kanye west heartless": "xk9EuEwMKcM",
+"kanye west heartless": "Co0tTeuUVhU",
+"stronger": "3mwiO5st-us",
+"kanye west pure souls": "i1nindf1meE",
+"kanye west hurricane": "bPjZmQAvk_8",
+"god is": "G8u3P7Xqlvo",
+"kanye west flashing lights ft dwele": "4AnnbOPCiQQ",
+"kanye west power": "SUtf9Ajlno4",
+"kanye west moon": "fMjasXiIhiQ",
+"heartless kanye west": "xheuZhFEuDA",
+"amazing": "KaumK4b6DqQ",
+"kanye west amazing": "1qOqSTw2l9c",
+"touch the sky": "B95OUKk7alM",
+"kanye west blkkk skkkn head explicit": "q604eed4ad0",
+"kanye west follow god official lyric video": "PH3KD2bb_yc",
+"kanye west love lockdown": "HZwMX6T5Jhk",
+"kanye west love lockdown": "w8s8_TLp3Mc",
+"kanye west all of the lights ft rihanna kid cudi": "HAfFfqiYLp0",
+"kanye west ghost town but it will make you ascend to the fourth dimension": "dQAsaY0pKhI",
+"i miss the old kanye edit": "ymD03NnH2QM",
+"violent crimes but itll make you think for a while": "DQH0g3nKkU4",
+"ye like that remix": "WO28_jXYao0",
+"kanye west diamonds from sierra leone": "92FCRmggNqQ",
+"playboi carti iloveuihateu": "pZ6oeHV28b0",
+"2024 prod ojivolta earlonthebeat and kanye west": "YG3EhWlBaoI",
+"kanye west flashing lights alternate intro": "O0Cw1SLdxxE",
+"kanye west good morning": "6CHs4x2uqcQ",
+"the old kanye": "l_T7KZEv6L0",
+"kanye west jesus walks version 2": "MYF7H_fpc-g",
+"lift yourself": "8fbyfDbi-MI",
+"everybody feat kanye west ty dolla ign charlie wilson": "dTeF8Yp33hI",
+"kanye west never see me again high quality vocals orchestral intro": "ICEzGr7x3t4",
+"kanye west i wonder extended intro": "xyfoyugCB8Y",
+"ken carson margiela official music video": "Ve5jWpIu6Ic",
+"aap rocky i smoked away my brain im god x demons mashup ft imogen heap clams casino": "AT9JoIv2kss",
+"ken carson overseas official music video": "80M6sAU9DY4",
+"playboi carti like weezy official visualizer": "C217vygclrk",
+"ken carson ss": "TMzs6GvsZXU",
+"playboi carti evil j0rdan official visualizer": "VcRc2DHHhoM",
+"lil peep star shopping": "m8QQR-wQA0I",
+"playboi carti olympian": "mj4yh7YrwfE",
+"travis scott playboi carti future where was you": "um-uRGkT8GU",
+"playboi carti evil j0rdan": "zTKheLpo4nQ",
+"playboi carti the weeknd rather lie": "fYD7YsSRHOY",
+"playboi carti hba": "QTLqujvTGrg",
+"kanye west stronger": "Y7p1D3MAY9c",
+"through the wire": "AE8y25CcE6s",
+"kanye west amazing ft young jeezy": "PH4JPgVD2SM",
+"ghost town": "qAsHVwl-MU4",
+"keri hilson knock you down official music video ft kanye west neyo": "p_RqWocthcc",
+"kanye west famous 2016 audio with lyrics": "1wYXSxCvN68",
+"nias in paris": "gTDCMd-O2Yk",
+"jayz kanye west niggas in paris watch the throne": "fbFnF-86eYs",
+"big sean blessings ft drake kanye west": "M6t47RI4bns",
+"kanye west gold digger ft jamie foxx": "6vwNcNOTVzY",
+"kanye west heartless hd": "p42ZPTgmrnY",
+"young jeezy put on featuring kanye west": "DXq2z9H_GLA",
+"good life": "U-N8gJ4HdYc",
+"kanye west feat jayz big sean clique hq": "DZyQHIlNa8M",
+"kanye west mercy explicit ft big sean pusha t 2 chainz": "7Dqgr0wNyPo",
+"kanye west fade explicit": "IxGvm6btP1A",
+"paranoid": "CiY8-LYkCEk",
+"jayz run this town ft rihanna kanye west": "ztygmWtWCjQ",
+"mercy kanye west ft big sean pusha t two chainz explicit": "EjihBZYt32c",
+"kanye west good life ft tpain": "FEKEjpTzB0Q",
+"kanye west closed on sunday": "MKM90u7pf3U",
+"kanye west closed on sunday 432hz": "REi0fr_9ZeA",
+"kanye west clique ft big sean jayz explicit": "Oxr9XWogBQA",
+"kanye west runaway ft pusha t": "4TVT7IOqH1Y",
+"kanye west 24": "o9GXiQBUK4Y",
+"xxxtentacion ye true love": "k7H2C5L8X7I",
+"kanye west flashing lights": "3JhLIL9InyY",
+"kanye west jail pt 2 ft dababy donda album": "eTwOIJvfF8k",
+"kanye west black skinhead yeezus explicit version": "R4xrLKb6oFI",
+"jayz kanye west nias in paris explicit": "gG_dA32oH44",
+"kanye fans wildingshorts kanyewest kendricklamar fyp": "_hPpRW4z1Z4",
+"kanye west runaway full version explicit": "dLMFlph54-g",
+"kanye west mercy hd": "_p2IA0x4QG8",
+"on sight": "uU9Fe-WXew4",
+"field trip": "hmrU19LBRkM",
+"cant tell me nothing": "hqvcww4ydh8",
+"ynw melly mixed personalities ft kanye west": "ZhRPzx2GhiM",
+"kanye west lord i need you": "U1JLaEBl7ik",
+"runaway": "VhEoCOWUtcU",
+"kanye west jesus lord": "Fmz2IjrQiWM",
+"jayz kanye west no church in the wild ft frank ocean thedream": "FJt7gNi3Nr4",
+"the game kanye west eazy official music video": "qy7sci2az88",
+"champion": "jKT4ArZCkso",
+"kanye west runaway 8d immersive audio": "ldkKmk6Haow",
+"jayz run this town ft rihanna kanye west": "AYO-17BDVCw",
+"gold digger kanye west feat jamie foxx": "UFdvCyKemAw",
+"kanye west no child left behind": "sDJBhQv85K0",
+"kanye west black skinhead": "YINzn01CQvY",
+"2 chainz birthday song ft kanye west official music video explicit version": "Y34jC4I1m70",
+"katy perry et ft kanye west": "fMkrHU98JlY",
+"wolves kanye west feat frank ocean vic mensa sia": "6yWyvDKIi74",
+"xxxtentacion one minute feat kanye west": "fufJp37goJ0",
+"kanye west donda": "ofIluxP1nEU",
+"kanye west runaway": "EoQk7aYZadk",
+"rihanna kanye west paul mccartney fourfiveseconds": "kt0g4dWxEBo",
+"kanye west flashing lights ft dwele": "ila-hAUXR5U",
+"sunday service choir revelations 191": "GM0KKjXB1Bc",
+"kanye west heaven and hell ft travis scott goat version": "tyoxTAuOiUk",
+"kanye west off the grid": "EbDMNjT-QpI",
+"kanye west follow god": "ivCY3Ec4iaU",
+"ye ty dolla ign carnival ft playboi carti rich the kid": "pEskP0ulPlA",
+"kanye west heaven and hell": "Xlvk8K0Wbpo",
+"schoolboy q that part ft kanye west explicit": "zrHzfrXBk_k",
+"hold my liquor": "bvBfiRWLj_0",
+"best transition oat wicked x god is wickedkanyewest mixtranisitiongodsong": "xFeWFbJ4WD0",
+"kanye west violent crimes lyric video": "DSY7u8Jg9c0",
+"kanye west jail pt 2": "UArRcQEgxp8",
+"all day": "mc-ccZXsIm4",
+"kanye west god is music video": "1UDj265fAqo",
+"kanye west god breathed": "aIhdYj4tfFo",
+"kanye west jay z ft frank ocean no church in the wild": "M37VucWh06Y",
+"send this to a person you cant put on speaker phone jess hilarious on kanye west": "P9CC0EXVNGo",
+"sunday service choir father stretch": "97tvJs5fQwM",
+"kanye west greatest hits best of mix ye yeezy best of mix dj lj": "AsEDtiQs7ZY",
+"kanye west good morning": "aVPoWv0ntwk",
+"4k kanye west niggas in paris": "IBPuPVdz7oU",
+"keri hilson knock you down ft kanye west neyo": "ZNWnOoUvSMA",
+"never let me down": "p4NvOKy7GOU",
+"god is kanye west godblessyou jesuslovesyou shorts lipsyncs lyrics fyp audio": "vLCpTjYecwU",
+"kanye west all falls down ft syleena johnson": "8kyWDhB_QeI",
+"kanye west remote control": "0Rtek05tOKU",
+"roses": "Qxlnb1lEdEs",
+"on sight is such a good song kanye lyrics": "sgqyFYntoZY",
+"kanye west floating trend": "16eLfIWGuJI",
+"kanye west ok ok pt 2": "RVPEzbhSjFw",
+"kanye west stronger": "PsO6ZnUZI0g",
+"future i won ft kanye west": "uoOjhTXXQ4c",
+"fivio foreign kanye west alicia keys city of gods": "c850yN8OKyk",
+"kanye west jonah": "txion5seTBA",
+"blood on the leaves": "KEA0btSNkpw",
+"kanye west runaway extended video version ft pusha t": "L7_jYl8A73g",
+"kanye west all mine lyric video": "TrQ7w1bdNvY",
+"kanye west keep my spirit alive": "V5VYKkx7N-g",
+"kanye west jesus lord pt 2": "HWzLbfkoztE",
+"gotta have itkanye west and jayz": "s8S5PN1FnFk",
+"kanye west heard em say ft adam levine": "elVF7oG0pQs",
+"kanye west ty dolla ign good dont die audio visualiser": "8RekdDwmvJs",
+"pop smoke tell the vision official ft kanye west pusha t": "o7jsf2PeYB8",
+"sunday service choir rain": "OhBcFDu78dU",
+"kanye west king": "xEJufkoM718",
+"kanye west ye hallelujah lyricsthaisub": "-wUZsWBKPLg",
+"kanye west power": "L53gjP-TtGE",
+"kanye west stronger": "pSCjVNTos8U",
+"2 chainz feel a way ft kanye west brent faiyaz": "f6vg4ZVyUW8",
+"eminem disses kanye west": "XN0-IvYsN9U",
+"dj khaled use this gospel remix ft kanye west eminem": "Nh6DuYynq7c",
+"all day live at the 2015 brit awards explicit": "_ABk7TmjnVk",
+"kanye west hurricane": "VRJiK-kdDb4",
+"kanye west see me now feat beyonce charlie wilson and big sean": "-5pIEDvec0g",
+"who was in paris skit funny kanye": "VrykxHaj9L8",
+"kanye west junya": "uZET6hpfV-4",
+"kanye west hell of a life v9": "Ck7ibM-GVYA",
+"robocop": "kVl__NgDAdw",
+"jayz kanye west murder to excellence": "54OtJlwazGo",
+"kanye west amazing ft young jeezy": "ZYbxS0Z_jPc",
+"welcome to heartbreak kanye west": "kqjLhDnbPf4",
+"mastering kanyestyle sampling on maschine mk3 kanyewest sampling drummachines maschinemk3": "pCyHDIAfvc8",
+"kanye west i wonderslowed reverb": "tNOlyqLqmdE",
+"songs that kanye ruined unforgivable": "pbHl-YEfxVg",
+"the real slim shady by eminem shorts": "0CS3hyCbhjk",
+"kanye west greatest hits best of mix ye yeezy best of mix dj lj": "AsEDtiQs7ZY",
+"kanye west violent crimes lyric video": "DSY7u8Jg9c0",
+"kanye west all of the lights ft rihanna kid cudi": "HAfFfqiYLp0",
+"ghost town": "qAsHVwl-MU4",
+"kanye west mercy explicit ft big sean pusha t 2 chainz": "7Dqgr0wNyPo",
+"kanye west gold digger ft jamie foxx": "6vwNcNOTVzY",
+"i wonder": "UYXa2yBF5ms",
+"kanye west heartless": "Co0tTeuUVhU",
+"kanye west all of the lights revised ft rihanna": "cAX0xgHoB6k",
+"kanye west runaway extended video version ft pusha t": "L7_jYl8A73g",
+"kanye west good morning": "6CHs4x2uqcQ",
+"jayz kanye west no church in the wild ft frank ocean thedream": "FJt7gNi3Nr4",
+"kanye west lil pump i love it feat adele givens official music video": "cwQgjq0mCdE",
+"kanye west stronger": "PsO6ZnUZI0g",
+"through the wire": "GLTQPR8PoZU",
+"jay z kanye west otis ft otis redding": "BoEKWtgJQAU",
+"kanye west blkkk skkkn head explicit": "q604eed4ad0",
+"rick ross devil in a new dress": "50GVPFj66CY",
+"kanye father stretch my hands pt1 but its a beautiful morning": "rxJtOm68TMk",
+"aap rocky i smoked away my brain im god x demons mashup ft imogen heap clams casino": "AT9JoIv2kss",
+"2024 prod ojivolta earlonthebeat and kanye west": "YG3EhWlBaoI",
+"power": "chPDTUjnWgA",
+"kanye west power": "L53gjP-TtGE",
+"dark fantasy": "UTH1VNHLjng",
+"ken caron yale": "kpuy4BEU644",
+"playboi carti magnolia": "oCveByMXd_0",
+"runaway": "EMnQwBTJnMM",
+"ski mask the slump god shibuya": "t4xfQDvrfqQ",
+"kanye west never see me again high quality vocals orchestral intro": "ICEzGr7x3t4",
+"playboi carti iloveuihateu": "pZ6oeHV28b0",
+"kanye west ghost town but it will make you ascend to the fourth dimension": "dQAsaY0pKhI",
+"estelle american boy feat kanye west": "Ic5vxw3eijY",
+"playboi carti like weezy official visualizer": "C217vygclrk",
+"mr rager": "XEolg577-DA",
+"playboi carti evil j0rdan": "zTKheLpo4nQ",
+"playboi carti sky": "KnumAWWWgUE",
+"ken carson margiela official music video": "Ve5jWpIu6Ic",
+"future metro boomin travis scott playboi carti type shit": "I0fgkcTbBoI",
+"everybody feat kanye west ty dolla ign charlie wilson": "dTeF8Yp33hI",
+"playboi carti all red official visualizer": "F6iYcXynA4s",
+"lift yourself": "8fbyfDbi-MI",
+"kanye west flashing lights alternate intro": "O0Cw1SLdxxE",
+"travis scott playboi carti future where was you": "um-uRGkT8GU",
+"monster": "pS6HRKZQLFA",
+"playboi carti evil j0rdan official visualizer": "VcRc2DHHhoM",
+"playboi carti the weeknd rather lie": "fYD7YsSRHOY",
+"playboi carti olympian": "mj4yh7YrwfE",
+"lil baby playboi carti skooly lets do it official music video": "Av4AsFPeQ9E",
+"homecoming": "EzU0ofo3jOs",
+"kanye west jesus walks version 2": "MYF7H_fpc-g",
+"keri hilson knock you down official music video ft kanye west neyo": "p_RqWocthcc",
+"good morning": "wqCz3-v3PHA",
+"kanye west through the wire": "uvb-1wjAtk4",
+"cant tell me nothing": "hqvcww4ydh8",
+"kanye west runaway full version explicit": "dLMFlph54-g",
+"addiction": "YuCwP-NbY0s",
+"ghost town": "5S6az6odzPI",
+"kanye west homecoming": "LQ488QrqGE4",
+"kanye west runaway ft pusha t": "4TVT7IOqH1Y",
+"kanye 530the cars missing extended intro sample in desc": "AUHDbzCVK1E",
+"goofy ahh piano kanye west runaway": "i3GunP9bytg",
+"kanye west power": "U1AwcePoqpk",
+"kanye west god is": "CYYbejNI_Cw",
+"kanye west greatest hits mix full playlist hip hop mix 2025": "vO8f7EEq86E",
+"kanye west amazing ft young jeezy": "PH4JPgVD2SM",
+"roses": "Qxlnb1lEdEs",
+"kanye west diamonds from sierra leone": "92FCRmggNqQ",
+"kanye west follow god": "ivCY3Ec4iaU",
+"kanye west fade explicit": "IxGvm6btP1A",
+"kanye west love lockdown": "HZwMX6T5Jhk",
+"did you know the origin of this song ye ty dolla ign talking ft north west shorts ye": "jVkTtzdcP68",
+"kanye west god got me leak": "iFCeIwCPaBI",
+"kanye west heartless": "xk9EuEwMKcM",
+"kanye west brothers best version": "2BWgmYHAxs4",
+"kanye west blood on the leaves later archive 2013": "KXUqSfeekz0",
+"kanye misses the old kanye": "MQJApuIAIQM",
+"kanye west come to life": "yblfMrUeiP4",
+"heard em say": "2B9KlQatQps",
+"kanye west closed on sunday": "MKM90u7pf3U",
+"stronger": "3mwiO5st-us",
+"heartless": "s40BTpfAELs",
+"amazing": "KaumK4b6DqQ",
+"praise god": "fc8-lG6Wnus",
+"wolves": "OZHjWc0Ssvk",
+"good life": "U-N8gJ4HdYc",
+"use this gospel": "8yQVcGkbpAc",
+"say you will": "d9BMPmfxaoM",
+"all of the lights": "w2Yh9sxfTd8",
+"closed on sunday": "Lp0q1wWe6XI",
+"street lights": "TUfuDKKGQxU",
+"love lockdown": "ek_T6atbfe0",
+"juice wrld robbery official music video": "iI34LYmJ1Fs",
+"juice wrld lucid dreams official music video": "mzB1VGEGcSU",
+"juice wrld empty out your pockets official fortnite video": "hgYhws0AHcg",
+"juice wrld wishing well official music video": "C5i-UnuUKUI",
+"juice wrld top songs 2022 juice wrld greatest hits full album 2022": "9UzJEaTVAC0",
+"juice wrld armed dangerous official music video": "cr82wSBZeeQ",
+"juice wrld righteous": "ZengOKCUBHo",
+"juice wrld all girls are the same official music video": "h3EJICKwITw",
+"juice wrld lean wit me official music video": "5SejM_hBvMM",
+"juice wrld burn official music video": "HA1srD2DwaI",
+"juice wrld empty": "9LSyWM2CL-U",
+"juice wrld let me know i wonder why freestyle": "swDam6Hrsm8",
+"juice wrld conversations official music video": "OcQ71ubUXAE",
+"juice wrld stay high": "Z9yaG27quz0",
+"juice wrld already dead official music video": "f74GYIVMk3I",
+"juice wrld in my head": "DqZhP-Vuxgs",
+"juice wrld lean wit me": "e6YYRLfUZ5M",
+"juice wrld wishing well": "Q3zpwgQK8Yg",
+"juice wrld the weeknd smile": "2avPJ9TZNmU",
+"juice wrld fast": "lzQpS1rH3zI",
+"juice wrld conversations": "1VSZtyenNlA",
+"38 special go go juice wrld": "ESMt9kofND4",
+"juice wrld bandit ft nba youngboy official music video": "Sw5fNI400E4",
+"juice wrld off the rip gamble": "05xCoE_0l4A",
+"lil pump ft 6ix9ine shut up ft xxxtentacion scarlxrd music video": "562-s96CdZU",
+"xxxtentacion 3 am freestyle prod xxx clams casino leaked by rydude vise": "sG7YcwqmNs4",
+"lil skies red roses ft landon cube official music video": "WlosjSe5B8c",
+"dragon ball super amv xxxtentacion x rich chigga x keith ape gospel reupload": "xY_qcxDZxn0",
+"juice wrld bad boy ft young thug official music video": "ghzdwjWrWcc",
+"juice wrld rental freestyle": "lIQfVQ0bZGE",
+"juice wrld remind me of the summer music video": "D-mtpCBOwm4",
+"juice wrld party by myself official music video": "Ys3zAdSI1eI",
+"juice wrld scars full songsession unreleased": "ILIgP7ikkWU",
+"juice wrld cheese and dope freestyle": "0_7XPkBAxpo",
+"juice wrld shes not there music video": "xTQfRFfV_8g",
+"juice wrld bloody blade": "dMoMgtElYjI",
+"juice wrld all these drugs music video": "iZoLpLB7qEA",
+"juice wrld blood on my jeans": "3Klj_pjjqUM",
+"rich the kid plug walk": "ToY6sjSV8h8",
+"ken carson fighting my demons official music video": "YKkMR2l05Rs",
+"mac miller self care": "SsKT0s5J8ko",
+"juice wrld scars unreleased": "GZyj2wU0NPU",
+"juice wrld autograph on my line music video": "JRAdnd3ORXM",
+"juice wrld cant be replaced prod reaper amv": "bZb_ElMj8-o",
+"lil peep 16 lines": "DxNt7xV5aII",
+"sleepy hallow 2055": "y1xZ_kAhjMc",
+"juice wrld both ways": "IjZuDJi80JI",
+"diplo wish feat trippie redd official music video": "efxiDBygvdg",
+"lil peep benz truck prod smokeasac": "3rkJ3L5Ce80",
+"king von armed dangerous": "tBKYI3-3lMg",
+"trippie redd travis scott dark knight dummo ft travis scott": "wrvN87l3s08",
+"trippie redd til the end of time visualizer": "xqvEWirb2ag",
+"juice wrld stay high official lyric video": "SKQ5r3AoXKs",
+"uicideboy not even ghosts are this empty": "sxkmlZkp6ag",
+"ken carson off the meter ftplayboi carti destroy lonely": "SWGjZrR3B8Y",
+"morning dew": "QsVX3OjGp58",
+"lil peep runaway": "zMCVp6INpnw",
+"my flaws burn through my skin like demonic flames from hell": "S0KAAsanVms",
+"uicideboy avalon official lyric video": "wFmAafUTJn0",
+"lil peep lil jeep": "zUPPrimH7Ow",
+"fck love xxxtentacionxxx ft trippie redd": "wXuFG8uQpZ8",
+"ski mask the slump god shibuya": "t4xfQDvrfqQ",
+"juice wrld flaws and sins": "RG9xHEF1vyk",
+"juice wrld robbery": "6pFKpy9HmRw",
+"juice wrld cuffed official music video": "_MUSrN3ACV4",
+"juice wrld legends": "dIzgiclddlM",
+"juice wrld cigarettes official visualizer": "Sis_JJZoAfQ",
+"juice wrld black white": "RRl_C73vFtQ",
+"juice wrld sometimes official visualizer": "ym9MpAz5PNI",
+"juice wrld ft lil uzi vert wasted official visualizer": "6n4wt6gj7pA",
+"juice wrld wishing well og version": "0zMrkkuk8Fw",
+"juice wrld already dead": "EAfckg0ORS4",
+"juice wrld all girls are the same": "BfBfDoBNjQo",
+"juice wrld ill be fine": "0_6RDuiUyFk",
+"juice wrld cigarettes official music video": "8FCaPKoHR3k",
+"lil tecca feat juice wrld ransom": "BHJ-1g1-kn4",
+"juice wrld cordae doomsday official music video": "JdXubSf5YUc",
+"juice wrld the way feat xxxtentacion official music video": "tHDMJB2xZdc",
+"juice wrld black white": "aQDhBNHBQUs",
+"ellie goulding juice wrld hate me": "UZwi9SHgzGY",
+"juice wrld in my head": "g16NKy9zDPo",
+"juice wrld burn official lyric video": "L5ge0v0FTiE",
+"hide": "uYHNdTPV7pM",
+"juice wrld company music video": "Q1RZxYl3Nm4",
+"juice wrld ill be fine official visualizer": "tbpiBw-GkaY",
+"juice wrld wishing well clean lyrics": "Jh38-gBZ370",
+"lucid dreams clean juice wrld": "jF3z3CZp1gk",
+"juice wrld marshmello come go official music video": "Dxm3cHrKcbA",
+"juice wrld xxxtentacions new song": "uwCEJo39uyQ",
+"juice wrld wishing well": "4opO3KxoUnI",
+"juice wrld empty": "84Xpdw92KFo",
+"juice wrld all girls are the same": "JcJKlRUnppc",
+"juice wrld desire": "Krw9ZLN0aqE",
+"juice wrld the party never ends official music video": "YEYu4cD5KAU",
+"lil peep xxxtentacion juice wrld": "v_Zhl8nUM9s",
+"juice wrld ft marshmello polo g kid laroi hate the other side": "rp2e4-Sh0Hc",
+"juice wrld wasted feat lil uzi vert": "pqiO8wV4-wc",
+"juice wrld go hard 20 official music video": "76-3t3g_Mig",
+"juice wrld with filters back subscribe music juicewrld juice rip ytshorts": "CtMQXemuZnY",
+"juice wrld feeling": "9gHwgVRRCWg",
+"marshmello juice wrld bye bye official lyric video": "ZnQMqj-Sbec",
+"juice wrld legends": "_o2pZbw05Dk",
+"when you realise this about juice wrld": "oWNVVY1eVQs",
+"juice wrld lean wit me": "WsrVxz4pjGs",
+"tame impala let it happen": "-ed6UeDp1ek",
+"tame impala the less i know the better": "2SUwOgmvzK4",
+"tame impala borderline": "2g5xkLqIElU",
+"tame impala new person same old mistakes": "_9bw_VtMUGA",
+"tame impala dracula": "xnP7qKxwzjg",
+"tame impala dracula": "jwVMgGs50vE",
+"tame impala one more hour": "Y0U6u2D8cMU",
+"tame impala eventually": "GHe8kKO8uds",
+"tame impala breathe deeper": "gs-MtItyOFc",
+"tame impala nangs": "c3yEjD_oijw",
+"tame impala is it true": "qLGwIHjhboA",
+"tame impala cause im a man": "EyEB2AEqHxc",
+"tame impala lost in yesterday": "C7VlC0QjdHU",
+"tame impala posthumous forgiveness": "44lWO3qhQMk",
+"tame impala it is not meant to be": "VpLXxFhy7s4",
+"tame impala the moment": "3Qpf9pAkUeI",
+"tame impala disciples": "NTfYYRGTB3g",
+"tame impala loveparanoia": "eI2c-Nrgsko",
+"tame impala the less i know the better": "sBzrzS1Ag_g",
+"gorillaz new gold ft tame impala bootie brown official visualiser": "qJa-VFwPpYA",
+"tame impala mind mischief": "BQKKDNCpVbo",
+"tame impala loser": "WvZnX0P04Q0",
+"tame impala let it happen": "pFptt7Cargc",
+"tame impala loser": "s3a4OQR-10M",
+"tame impala my old ways": "pyUOSaQZmxw",
+"tame impala let it happen 8d audio": "vvBaEhoMiOA",
+"tame impala lil yachty breathe deeper lil yachty remix": "I-dvJGbVQQ4",
+"the less i let it happen the better i know": "-sJU-n-aTxA",
+"tame impala on track": "XlmpIRFeI8I",
+"tame impala let it happen": "YqlLjeM0l_4",
+"tame impala borderline ultimate version single album mix": "1_R-L6oxHvU",
+"tame impala no reply": "FtZuN44Jg0U",
+"tame impala feels like we only go backwards": "TZ-W40TEXNc",
+"justice neverender starring tame impala": "E7FU_mqhFGk",
+"justice x tame impala neverender": "911ahyRrjZ8",
+"tame impala elephant": "z7q9W2PNhJ4",
+"justice neverender starring tame impala official lyric video": "47YNsf-7Y7c",
+"tame impala end of summer": "ulkdUfItyxI",
+"tame impala end of summer": "lGXOUdqU6nI",
+"tame impala tiny desk concert": "xSDfCwDmJNo",
+"tame impala oblivion": "ZTyPjR9a8vw",
+"tame impala apocalypse dreams": "DmmvZrBnQ4M",
+"tame impala end of summer": "lEl1y4uSdDs",
+"tame impala yes im changing": "D_cMCvudZBs",
+"chase atlantic into it": "lZp96uELegI",
+"slow down": "4kbSC3HXfJw",
+"chase atlantic consume feat goon des garcons": "oCdXuomafSU",
+"paradise": "4tijiFGhBN8",
+"meddle about": "MXp3lZQgwes",
+"chase atlantic the walls": "FnvUMFmxP70",
+"chase atlantic friends official lyric video": "nT8O_mP2x6Y",
+"moonlight": "vUNK5rIssww",
+"dancer in the dark": "pdAGwKJoIEM",
+"chase atlantic right here": "Z4kzes_3FJY",
+"chase atlantic triggered": "9vYXWvQhQIs",
+"chase atlantic drugs money": "quF_LwIeVv8",
+"chase atlantic heaven and back": "uIS6H-JxOXE",
+"chase atlantic die for me official lyric video": "k_F-b8tLvng",
+"chase atlantic swim": "eto-4V82YtU",
+"chase atlantic tidal wave official lyric video": "0Tgn8hR7Jpo",
+"falling": "f59S9Aid4B0",
+"you too": "pvDMoyz_uRQ",
+"chase atlantic swim lyric video": "R4rFZDH60N4",
+"chase atlantic swim official music video": "mC9v5FaLt84",
+"chase atlantic call me back official visualizer": "SNZfK06U68g",
+"chase atlantic why stop now": "UEIRbiOWZRc",
+"chase atlantic you official lyric video": "A8vCSJwdq7c",
+"vietsub into it chase atlantic lyrics video": "TlgNKN1VXUU",
+"chase atlantic slow down": "aa3k806uonM",
+"chase atlantic friends slowed down": "cWbWbOCJOzc",
+"chase atlantic swim tiktok remixspeed up lyrics luckily luckily luckily chase atlantic": "ztC_hIVraYk",
+"friends chase atlantic tiktok version": "TduGGR2mE04",
+"fcked up chase atlantic": "k09azzrv4_k",
+"travis scott goosebumps feat chase atlantic remix lyrics": "DsWQ38n0VeA",
+"chase atlantic into it official live music video": "TkBi4hZlV8U",
+"chase atlantic august": "c1vTxJouUyE",
+"chase atlantic slow down": "u7lzhf_O-50",
+"chase atlantic friends": "xKtkpHsK7jI",
+"chase atlantic remind me official lyric video": "0HRRTLGUiws",
+"chase atlantic ozone": "QAe-x8bfdug",
+"chase atlantic her official music video": "wNliit0-u7c",
+"chase atlantic cassie": "6Hs0RHO2Hl8",
+"chase atlantic triggered official music video": "JcOCAmj3fDs",
+"chase atlantic warcry official visualizer": "w03hq-Ok1DE",
+"chase atlantic disconnected official visualizer": "kgmHg7GvgHo",
+"chase atlantic friends 8d audio": "nwwuTpkTs8Y",
+"chase atlantic playlist": "rxLMuc8sJjg",
+"greengreengreen": "JSOwafXzJiQ",
+"chase atlantic swim": "7yW_uJOpxww",
+"chase atlantic church lyrics": "Jerb5y8-Y2k",
+"chase atlantic demon time official visualizer": "RMLg9sZMPUs",
+"chase atlantic disconnected official music video": "0yFy32q_jR0",
+"chase atlantic swim": "Z6lqFHwDt10",
+"chase atlantic victory lap feat dewayne official visualizer": "CsMFKou4s5o",
+"chase atlantic uncomfortable": "mXjUcE6ZevE",
+"chase atlantic what u call that official lyric video": "L_1Iu6UBiLw",
+"chase atlantic meddle about": "tykNAh1anU0",
+"sub thai swim chase atlantic": "Prlk4SXeqTk",
+"chase atlantic ohmami with maggie lindemann official visualizer": "5kXWaOd95Ug",
+"chase atlantic okay official music video": "IIVm_2Ep1dk",
+"chase atlantic friends so what the hell are we tell me we werent just friends": "aVjMuNW4r1w",
+"chase atlantic paradise": "E_zXy3ZOMTM",
+"chase atlantic 23": "k7_KaCgC5oQ",
+"chase atlantic i think im lost again official visualizer": "M5jfPAp--qM",
+"devilish": "DdzF7AT8Lds",
+"chase atlantic paranoid official visualizer": "zpK1ICt5Tms",
+"chase atlantic angels": "5YcvYeColJY",
+"chase atlantic facedown official lyric video": "FBE_BANaR4w",
+"chase atlantic the playlist": "zBlWh2Gcjo8",
+"chase atlantic okay": "G-V_1VdrmBQ",
+"chase atlantic aleyuh official visualizer": "JKlkgmN_j3U",
+"chase atlantic heaven and back": "_lpFyGTrxfc",
+"chase atlantic playlist": "IaZv0ALqr1k",
+"chase atlantic out the roof": "Z3BXTHZGOZc",
+"chase atlantic ricochet official music video": "E47KhT81CL8",
+"chase atlantic slide official music video": "tOVIeLZtxDc",
+"chase atlantic slide lyrics": "2O7FQ4iYxFU",
+"chase atlantic the walls": "UYD3EZ-QOXQ",
+"chase atlantic facedown official music video": "WM28EGDUSj0",
+"chase atlantic numb to the feeling official music video": "j-_vl5AXsj0",
+"chase atlantic doubt it official lyric video": "Qg5OefST_9g",
+"roxanne": "bCW15UFuocE",
+"chase atlantic mamacita official music video": "gdCAFwCZKxo",
+"": "C6nFRQMaBVM",
+"friends chase atlantic sub espaol": "_Il3sSsuqyA",
+"talk slow": "hU96pNN2Ysw",
+"chase atlantic mess me up official visualizer": "dUwd4SP3atc",
+"": "W_Ua_bNxdiI",
+"post malone white iverson": "XhmGfZ1SeuY",
+"post malone wow": "NA4uIFbVCPM",
+"post malone circles": "pQV0WEdT_OE",
+"post malone take what you want ft ozzy osbourne travis scott": "LYa_ReqRlcs",
+"post malone i like you a happier song ft doja cat": "_a0T5qwxANg",
+"post malone rockstar ft 21 savage": "4GFAZBKZVJY",
+"post malone hollywoods bleeding": "w5GrxfjuTTI",
+"candy paint": "qtgf-sidZrU",
+"i fall apart": "nqfVoTMEosw",
+"post malone the weeknd one right now": "OCogbzIvYg0",
+"stay": "4Ukh9aQBzWc",
+"post malone chemical": "D2HMHH6sRBY",
+"congratulations": "R8vpQdZErbw",
+"post malone goodbyes ft young thug rated pg": "S4asq3SicN0",
+"post malone goodbyes ft young thug official lyric video": "Wisthc226SU",
+"post malone feat ty dolla ign psycho": "MGYJuETPQEg",
+"post malone a thousand bad times": "ul-9U681Y2c",
+"post malone go flex": "vC2owoWdIUs",
+"post malone rockstar official music video ft 21 savage": "UceaB4D0jpo",
+"post malone rockstar ft 21 savage explicit hq": "jONxrPmIUVY",
+"post malone on the road ft meek mill lil baby": "yw_ShLNyHTk",
+"motley crew": "VYjxeXsM9gw",
+"post malone losers lyric video ft jelly roll": "uKiF-UMnB9A",
+"post malone cooped up ft roddy ricch": "LUBUchYczsA",
+"post malone circles slowed reverb": "hbMsnRhr1UI",
+"post malone i fall apart": "P4s6DX0WoXc",
+"enemies": "qT_y5Yc8jSA",
+"post malone why dont you love me before he was famous": "XWr2VZiov_A",
+"post malone motley crew": "lCiV4wACZ8w",
+"post malone goodbyes ft young thug rated r": "ba7mB8oueCY",
+"post malone psycho official music video ft ty dolla ign": "au2n7VVGv_c",
+"post malone ft blake shelton pour me a drink ft blake shelton": "RoeXmaSE7Lo",
+"post malone mourning official music video": "DAOZJPquY_w",
+"post malone ft sia addicted to you lyrics videoai music": "mD3IKNS8qcU",
+"92 explorer": "OhqyRJtv3K0",
+"mood": "KfuukDHC0d8",
+"post malone chemical official music video": "IzPQ_jA00bk",
+"lil peep star shopping": "m8QQR-wQA0I",
+"post malone better now": "UYwF-jdcVjY",
+"post malone better now beerbongs bentleys": "Oggrsg4jZPM",
+"post malone die for me ft future halsey": "I_QpDE-Uco0",
+"post malone greatest hits full album top songs full album top 10 hits of all time": "aDd9wZe4Taw",
+"post malone overdrive official live performance vevo": "hggjZ-FGGkw",
+"big sean wolves ft post malone": "Zx_DBvChpvM",
+"post malone sainttropez": "VEsKftAplus",
+"tyla yaweh tommy lee ft post malone": "4Do9gZpLnfg",
+"post malone psycho ft ty dolla ign beerbongs bentleys": "thMKwS-7kB4",
+"post malone overdrive extended": "4Y1riYO_JAk",
+"post malone pour me a drink lyric video ft blake shelton": "QL4-aYxCVAI",
+"post malone wow remix feat roddy ricch tyga": "Em1uK7KKc6o",
+"post malone congratulations official music video ft quavo": "SC4xMk98Pdc",
+"post malone congratulations ft quavo": "m_DG4shGECI",
+"post malone mourning official visualizer": "U2Ww0iPEet4",
+"post malone goodbyes ft young thug": "s-gr6k95iaM",
+"post malone mark morrison sickick cooped up return of the mack": "TR5rpEtK_4k",
+"post malone yours lyric video": "hrAeuPqYnRQ",
+"post malone circles": "WnLIGgTaBM0",
+"post malone circles": "wXhTHyIgQ_U",
+"post malone better now": "xewNTTHY_go",
+"post malone myself": "gqthPT8vK7o",
+"post malone psycho ft ty dolla ign": "uhx8NjSsdY0",
+"post malone circles clean lyrics": "9gkRJONZPSA",
+"post malone sunflower ft swae lee": "Dghmoi7XZmc",
+"post malone goodbyes clean lyrics ft young thug": "EA9HaXLAt9M",
+"post malone i had some help lyric video ft morgan wallen": "11T6kF66dKY",
+"post malone circles live from the studio": "DX6jfQG2YdY",
+"post malone swae lee sunflower": "cKMQz1Rf2ow",
+"post malone allergic": "JdttvuGdlvs",
+"post malone goodbyes ft young thug": "O5amIdSD8eI",
+"post malone i had some help feat morgan wallen": "4QIZE708gJ4",
+"post malone morgan wallen i had some help": "KqVIjvBzGR0",
+"post malone im gonna be": "s1XbPXdgEEA",
+"taylor swift fortnight feat post malone": "b7kmP1fsGg8",
+"post malone internet": "weXNuvoyEr0",
+"post malone wrapped around your finger official lyric video": "JXxAnZaZrG0",
+"post malone i know": "k7fiZ_if2Bg",
+"post malone swae lee sunflower live from the studio": "Lk0sZwXTwnc",
+"post malone waiting for never official visualizer": "2SH6516eyL8",
+"over now": "vFPoHUIRpvg",
+"post malone over now beerbongs bentleys": "r6FtPaX8URI",
+"post malone circles 8d audio": "ZfCJhLq2CSE",
+"post malone cooped up official music video ft roddy ricch": "WABOrIYhR94",
+"post malone what dont belong to me lyric video": "qvfssW5U_Ig",
+"post malone when im alone": "pqg2mD7o_nU",
+"post malone circles": "TqXPtEU9MJs",
+"sugar wraith": "auRnvLHCMtg",
+"post malone overdrive": "S1koeM672XM",
+"post malone angus stone big jet plane live cover": "WEIuAB7FTtk",
+"post malone wrong ones lyric video ft tim mcgraw": "72jIu39ZRz4",
+"future honest": "aOCpGOVB0AY",
+"future march madness": "pJ-c5NsKjXo",
+"future wicked purple reign": "4wrn4Tg6_4g",
+"future solo": "X2DTROC4JCI",
+"future lil uzi vert drankin n smokin": "-QiovlGJi_U",
+"future hardly": "3ToQHDcyuSs",
+"gunna future pushin p feat young thug": "9g08kucPQtE",
+"future too comfortable": "wPhs_tPENDQ",
+"zaytoven mo reala ft future": "CXAqYldb01A",
+"future 56 nights": "UZQFg5IfhQs",
+"future married to the game project et esco terrestrial": "NUyf8SMPUAI",
+"future oath": "mkR22IvUZO8",
+"future low life ft the weeknd": "T8e5YMKVQXU",
+"future wait for u ft drake tems": "Y2QpQP8wPG8",
+"future accepting my flaws": "pCIKkdIUaJI",
+"hotboii future nobody special": "2jVJMfrL3jI",
+"future fck up some commas": "z0G04bgZHwc",
+"young thug sup mate ft future": "CV7OQerBcBs",
+"future codeine crazy": "O7eVICpL8FY",
+"21 savage metro boomin x ft future": "szKxAdvlCCM",
+"future love you better": "rC8B3JfV_jE",
+"turn on the lights": "4rnkNwFXSNw",
+"future lay up": "xc3lse938xA",
+"28 minutes of future hardest songs seamless transitions": "wgkkvRwUAgk",
+"future plutoski": "GHEx6uCO80w",
+"future lil demon": "ayWwfGtGpBQ",
+"don toliver fwu official music video": "70E1B_5bimY",
+"playboi carti toxic with skepta": "U6jeOBSGI6Q",
+"future honest official music video": "FAeAp9MzPtk",
+"future puffin on zootiez": "8c6jIwNpG00",
+"lil yachty pardon me ft future mike will madeit": "W7VK4DUHvKU",
+"future hard to choose one": "SfKo0EWzeh8",
+"future low life official music video ft the weeknd": "K_9tX4eHztY",
+"mask off orchestra version future prod metro boominedit audio": "5W0X-zxueVY",
+"future solo hndrxx": "xC0pF72qmIw",
+"future life is good official music video ft drake": "l0U7SxXHkPY",
+"playboi carti evil j0rdan": "zTKheLpo4nQ",
+"future puffin on zootiez official music video": "H8E0WIy_vFc",
+"playboi carti hba": "QTLqujvTGrg",
+"young thug money on money feat future": "W4aE8of2znM",
+"i hate what happened charge me future metro boomin full cdq leak": "H7QwVlXsM4A",
+"travis scott playboi carti future where was you": "um-uRGkT8GU",
+"future perkys calling purple reign": "isU7n-XNSbA",
+"future metro boomin gta": "A8bE-MPs0K0",
+"future march madness": "nyAHO0U-KQg",
+"married to the game": "zLZrytzKRLs",
+"gunna just say dat": "8gy-Y9tWK6M",
+"playboi carti evil j0rdan official visualizer": "VcRc2DHHhoM",
+"ken carson yes": "KMoHAuvwN3Y",
+"playboi carti the weeknd rather lie": "fYD7YsSRHOY",
+"future metro boomin travis scott playboi carti type shit": "I0fgkcTbBoI",
+"lil baby playboi carti skooly lets do it official music video": "Av4AsFPeQ9E",
+"young thug future money on money": "Oruj2QwwMsM",
+"future south of france": "XDaOOV2jubk",
+"future lookin exotic hndrxx": "zLuY1bgWxrI",
+"future extra": "6vvsY60dgOI",
+"lil durk they want to be you ft future": "BFEtZWz6tPI",
+"future throw away": "LY8H6vccN5M",
+"future last breath from creed original motion picture soundtrack": "mKeqZ_AcL_A",
+"gunna street sweeper feat future": "xMgE736TC4A",
+"mask off": "aWb8z-KhZdo",
+"future shotgun": "yPcgqztrSyQ",
+"travis scott telekinesis ft sza future": "xl5LunV-OkU",
+"future metro boomin fried she a vibe": "0Z8eMHVwFDw",
+"future metro boomin kendrick lamar like that": "N9bKBAA22Go",
+"post malone die for me ft future halsey": "I_QpDE-Uco0",
+"future life is good ft drake": "ZBOoVj6IW3s",
+"drake n 2 deep ft future": "Oh-Al70frOc",
+"future monster": "PnYeNKtY5UQ",
+"married to the game": "5oauNlfODxw",
+"future never stop": "jAI9Jdmv7J8",
+"future lil uzi vert patek": "GiqoknOr4z4",
+"future 712pm": "mPdlRs6Bf_8",
+"future hate the real me": "mS0bX6Hch0w",
+"future draco future": "9y64nUw1wwc",
+"future hallucinating hndrxx": "IxBEfXFDo1M",
+"my collection": "Ck9CVPn9F20",
+"future metro boomin travis scott playboi carti type shit": "XcK8JdVlcXY",
+"drake desires ft future": "nGXCuAHEjYI",
+"future never gon lose": "9UIOC3wCZZ8",
+"future news or somethin": "Slhfx6ChFic",
+"future where ya at ft drake": "fPTJLHjzyEo",
+"fly shit only": "IMMrprklAPc",
+"future ski": "Kad2gkMFnHE",
+"future too fast": "Y3kPf8jaoso",
+"future charge me": "Y-_txV6e01Y",
+"the weeknd future enjoy the show": "b9jHP7XhMDg",
+"future 31 days": "rcTIq5mtRRM",
+"playboi carti trim with future": "7HCSPePbjNQ",
+"shot for me": "wc7JPaRV5uU",
+"drake pipe down": "ZIu-V_xEehs",
+"drake 21 savage hours in silence": "6hfbHSItskQ",
+"practice": "JUrDOWj9RUw",
+"drake 21 savage spin bout u": "jALeORvCJG8",
+"drake virginia beach": "k20wnICXpps",
+"drake tsu": "fhEqtynX_xc",
+"drake when to say when": "qTNFIQyWe8M",
+"drake members only ft partynextdoor": "9YN6_jvHheo",
+"hold on were going home": "KnkDL9lkbX8",
+"drake 21 savage treacherous twins": "jCtsnNpCDo0",
+"drake hotline bling": "zt6aRKpf9T4",
+"drake slime you out ft sza": "2_gLD1jarfU",
+"drake girls want girls ft lil baby": "b8M6N0FTpNc",
+"headlines": "Sn3SUnL44w4",
+"marvins room": "JDb3ZZD4bA0",
+"partynextdoor come and see me ft drake": "lG4HICGeQoo",
+"drake fair trade ft travis scott": "THVbtGqEO1o",
+"shut it down": "wWcaNu10POQ",
+"drake 21 savage privileged rappers": "lF3K70KR5Xk",
+"gods plan": "m1a_GqJf02M",
+"drake time flies": "OjgBxXNP3gw",
+"drake war": "VcxPv4I-xZg",
+"drake not you too ft chris brown": "ZX_mvoY_Hg0",
+"forever ever feat young thug reese laflare": "XYb1mdGu5aQ",
+"drake rich baby daddy ft sexyy red sza": "F7o0upORtCw",
+"frank ocean novacane": "BPvDlF0raWI",
+"aap rocky i smoked away my brain im god x demons mashup ft imogen heap clams casino": "AT9JoIv2kss",
+"drake kanye west lil wayne eminem forever explicit version official music video": "eDuRoPIOBjE",
+"drake nokia official music video": "8ekJMC8OtGU",
+"4 raws": "gt_Oe2yGE4o",
+"meek mill going bad feat drake": "S1gp0m4B5p8",
+"ken carson blakk rokkstar": "29ToiaUotCE",
+"ken carson i need u": "XDocuspdgVk",
+"daniel caesar superpowers": "rScwLoES2bM",
+"partynextdoor belong to the city remix ft drake": "Xwo_9di-gpw",
+"playboi carti tundrah00dbyair official music video": "KwBObpqldm8",
+"playboi carti iloveuihateu": "pZ6oeHV28b0",
+"drake idgaf ft yeat": "fCRCLsJQWUQ",
+"long time intro": "tkPoOvVnbRk",
+"playboi carti like weezy official visualizer": "C217vygclrk",
+"drake 9 slowed to perfection 432hz": "1CyEuQnfDGo",
+"lucki randomly": "KeHKJCt4qJA",
+"lucki rip official visualizer": "rSO1cBfPVQg",
+"lucki leave her": "egMEvoCWc3k",
+"lucki no bap": "jbrarMb6fpw",
+"lucki white house feat babyface ray": "7GQUuYQPzx0",
+"lucki geeked": "98yxlTtvHsY",
+"lucki me myself i": "T445kuJzg4M",
+"lucki paidnfull": "O2zPPwCfmYo",
+"lucki coincidence": "FOTc7KqGuZY",
+"lucki made my day": "99EezaGpru4",
+"lucki go away": "1utwLavnFL8",
+"lucki heavy on my heart": "IgBLFQBCCuU",
+"lucki on point": "9dQIZOcmAI8",
+"lucki send me on my way": "HVxwnNFz3jU",
+"lucki y not": "mJiwlgvGTSI",
+"lucki tbt": "31qu0xIt7m0",
+"lucki rip act": "HRNfd9ckHt4",
+"lucki how tf": "iyigJD1npOA",
+"lucki archive celine": "biqC6Ncq5Zg",
+"lucki 4 the betta": "3Bg_HmJ6bs4",
+"lucki faith": "prtZiX14Png",
+"lucki future kapitol denim": "8O7QSebmOaM",
+"alternative outro": "D0meVJwBUl0",
+"do you want": "WnxYoYBhyWA",
+"lucki lil yachty i dont care": "x9pVY4rBv8Q",
+"lucki diamond stitching": "rgCbZFPnx80",
+"lucki droughtski": "1aL5v2cZSzg",
+"lucki more than ever official music video": "7-QK_1oHoiQ",
+"slow down": "NPgG9n_HpGc",
+"sunset": "4-pdlpEwMao",
+"lucki 4 the betta": "7vyGnES3KlY",
+"lucki foggy days prod captaincrunch dj eway": "ZyDzGqXRndU",
+"lucki switchlanes dir lonewolf": "Y-66OdLOxyk",
+"cocaine woman": "FMw_EXe18Qg",
+"lucki super urus": "fIrSkilUvHw",
+"sessions feat lucki": "VyB0xHOiXAg",
+"at night": "hoV6qv9R_gg",
+"lucki y not": "ugou23mYCmE",
+"lucki new drank dir lonewolf": "vXvqB2AiAio",
+"playboi carti iloveuihateu": "pZ6oeHV28b0",
+"playboi carti like weezy official visualizer": "C217vygclrk",
+"lil baby playboi carti skooly lets do it official music video": "Av4AsFPeQ9E",
+"veeze get lucki": "Pu1fEn0GvC4",
+"lucki gemini love official visualizer": "D-VYY3VbPBQ",
+"lucki courtesy of official visualizer": "EOLnVu3uXnw",
+"lucki f1lthy ugk official visualizer": "ZP_4XEAd6Fk",
+"lucki heavy on my heart official visualizer": "wTa4Kee3zA8",
+"lucki goodfellas": "6uuL43i-JQY",
+"lucki f1lthy 2019 official visualizer": "rJHwVNmZdnA",
+"lucki goodfellas": "EDfEuWeu1WY",
+"lucki new york official visualizer": "q1f7xtNQcJU",
+"lucki on they way official visualizer": "BeAluF9HjC8",
+"lucki noticed ya": "mHK_Ux2QViw",
+"lucki red key": "Z3oJGN36tFg",
+"lucki 2021 vibes official visualizer": "z4zC_puw87M",
+"lucki dna": "n6OcP_SrL8k",
+"veeze get lucki official music video": "GnKdDGoxtko",
+"lucki rylo rodriguez veeze gerskiway": "yK96Yl2AYgc",
+"lucki 16yrold way 2 rare": "xEcNPupL7Oc",
+"chuckyy hotseat feat lucki official music video": "GmmU95R74b8",
+"lucki 13": "HmcTGHR5oHU",
+"lucki bad influence freestyle": "6fE-pmQG0Ks",
+"lucki tune scotty": "sz0RG2cLbdw",
+"lucki left 4 dead": "K7ySSoGPyzY",
+"lucki beverly hills to 35th": "swb-oOTDtww",
+"lucki geeked n blessed": "y1g-WdCfMDE",
+"lucki been a minute": "AdCQXqunKhI",
+"lucki brazy weekend": "ayYmdMX0TYo",
+"lucki kylie official visualizer": "VtIjS2CqjnY",
+"lucki gemini love": "Vg0JgB2sN98",
+"lucki pure love hate visualizer": "x8537eyytrU",
+"lucki paidnfull colorful drugs": "sKu8Zg7Hplc",
+"lucki 4 the betta": "TSqbGm7FDdY",
+"lucki hollywood dreamer": "Do0e14t0FDw",
+"lucki widebody": "kEhX06Doi3s",
+"new drank": "Dn9A3Ri5DAs",
+"lucki chosen one": "ms3MuKubGKQ",
+"lucki my way codeine cowboy": "A3BIdYbZP0Y",
+"lucki meet me there": "O_hMolhadQ8",
+"lucki your dreams produced with flavor": "RB6jEZpL9Wg",
+"daemoney gta feat veeze lucki": "NNYGSeZAHmM",
+"lucki free mr banks": "yoKU-adT3kg",
+"lucki free mr banks": "rbNfckqe4oM",
+"lucki runnin with visualizer": "LlALDHVnmK4",
+"lucki lil yachty greed": "2gvu85RlHfc",
+"lucki exotic official visualizer": "-F0Ajlzs_2o",
+"lucki its bool visualizer": "ErEOIpkarEI",
+"lucki nigo visualizer": "FdWvKBd_l7M",
+"1 hour lucki mix of songs you have never heard 2025": "sZ-KWMtlKi0",
+"lucki overthnking": "Ed3_NqN7pls",
+"lucki lifestylebrazy": "VxznyEuHFlk",
+"lucki all love official visualizer": "1W5QovGqi9s",
+"lucki tarantino visualizer": "ozUOQyYG0DU",
+"lucki pop star official visualizer": "Kb_4OSbRJ8s",
+"lucki 10 pm in lndn": "Opq_3l0DFp0",
+"lucki at least i think its real visualizer": "OWP7LEvB-JM",
+"lucki super urus": "Z55v5JkpVvc",
+"lucki chrome denim official visualizer": "_SXICPYHZsY",
+"lucki lil yachty biggavel official visualizer": "6GjZMFUfxOw",
+"lucki last time mentioning good riddance": "e30ApA0cWRg",
+"lucki almighty tune official visualizer": "MBasbdPvL1M",
+"lucki mubu": "QodLIb2ZKxo",
+"lucki diamond stitching": "5heFq2UIhSM",
+"lucki pick a flaw visualizer": "vh__vqQB6gI",
+"lucki life mocks art": "X_q1xQZN4YU",
+"3d outro": "H2t9aZQ3YKI",
+"lucki x6": "KKAYk5TG09s",
+"lucki 13": "Yq_qdfajtNI",
+"lucki bby pluto official visualizer": "m8wyNHFuOQM",
+"lucki bby pluto extended intro prod jono": "EEH1IVcnT5Q",
+"lucki f1lthy cry out official visualizer": "iwyhv5Pskxs",
+"lucki mubu official visualizer": "cck9JTirJaw",
+"lucki ouch omen visualizer": "Dz3FgtxLq8c",
+"lucki not so virgo of you official music video": "ueqTQ-CMSDw",
+"lucki outro official visualizer": "kMqbjE5EhRw",
+"drake yebbas heartbreak": "9rlW2rUzyn0",
+"youngboy never broke again nevada": "JfGnwcf5Lt0",
+"ken carson fighting my demons official music video": "YKkMR2l05Rs",
+"drake energy": "7LnBvuzjpr4",
+"drake ft jay z pound cake instrumental": "TOdwMx9jHFs",
+"ken carson me n my kup": "K_y1aG9hnH8",
+"rihanna feat drake whats my name": "e2gaIYs8Pf8",
+"drake we made it ft soulja boy": "jhenogvNrno",
+"ken carson loading": "0QydmrTTXog",
+"mr rager": "XEolg577-DA",
+"juice wrld let me know i wonder why freestyle": "swDam6Hrsm8",
+"yeat com n go official music video": "QqzXvvdk3bQ",
+"playboi carti olympian": "mj4yh7YrwfE",
+"2024 prod ojivolta earlonthebeat and kanye west": "YG3EhWlBaoI",
+"playboi carti the weeknd rather lie": "fYD7YsSRHOY",
+"xxxtentacion sad": "pgN-vvVVxMA",
+"i might be sued": "kKKsX8UzJzI",
+"drake toosie slide official explicit audio": "dGYxT1QReQs",
+"drake im upset": "wS4ESheuHDY",
+"nokia": "RDH71p3LgWM",
+"drake laugh now cry later official music video ft lil durk": "JFm7YDVlqnI",
+"over": "KPS9kBybDfI",
+"drake family matters": "ZkXG3ZrXlbc",
+"one dance feat wizkid kyla drake": "FOqKN-ouAUE",
+"ken carson ss": "TMzs6GvsZXU",
+"drake 21 savage rich flex": "I4DjHHVHWAE",
+"fancy": "mUZrMNhM7fE",
+"drake passionfruit": "fHR1CZ9x61E",
+"drake nice for what": "U9BwWKXjVaI",
+"drake 9": "q50SwIodCwg",
+"dj khaled ft drake greece": "NCHFUHRe604",
+"drake champagne poetry": "IxVuT8cgccM",
+"nice for what": "1Jx4Dv269uE",
+"nicki minaj drake lil wayne seeing green": "_Q7rcUm0Dro",
+"lil wayne love me explicit versionclosed captioned ft drake future": "KY44zvhWhp4",
+"drake trust issues": "vMGpBAOD2CI",
+"roy woods drama feat drake roywoods": "XP0fdtXn49s",
+"metro boomin no complaints feat offset drake": "WSHhp-VXTZs",
+"drake giveon chicago freestyle": "p9pf5EyOgcs",
+"romeo santos odio feat drake lyric video": "W8r-eIhp4j0",
+"passionfruit": "EgfsXTOn_pI",
+"migos walk it talk it ft drake": "A_xWDAbnBSU",
+"drake polar opposites": "jfuzmCOcQSs",
+"drake race my mind": "bpXztWUPPFQ",
+"drake jumbotron shit poppin": "IkpgHYDGQlo",
+"drake gods plan lyric video": "pPKx-fon1nY",
+"up all night": "2BD9XuEz9bY",
+"drake get along better ft ty dolla ign": "84y-jaEiFZU",
+"dj khaled ft drake popstar": "-iNWEwLfkv8",
+"drake what did i miss": "weU76DGHKU0",
+"drake headlines explicit": "cimoNqiulUE",
+"partynextdoor drake nokia": "UWyFj-TD9-M",
+"ceces interlude": "uBB_-wEeQ0Q",
+"camila cabello uuugly feat drake official visualizer": "Qmj4iFeuEQ0",
+"jungle": "AfRdRXCo3IU",
+"teenage fever": "e8HtwsnuTIw",
+"drake flights booked": "hb24kZ0fiEA",
+"chris brown no guidance ft drake": "oOni4BMeMp0",
+"drake a keeper": "RaskP_FC9VA",
+"nicki minaj moment 4 life ft drake": "xlt1lBDglGE",
+"nicki minaj only official lyric video ft drake lil wayne chris brown": "BU769XX_dIQ",
+"young thug bubbly with drake travis scott": "uCDE-S1AjuQ",
+"rick ross diced pineapples explicit ft wale drake": "jb6HZa151s8",
+"drake fountains ft tems": "pwtWYFUwenE",
+"sound in drakes house": "Jie6dT7a0wI",
+"brent faiyaz ft drake wasting time": "KJViHi-dSxY",
+"drake red button": "leWap1vgE8U",
+"drake losses": "V7iHOPpKRJc",
+"partynextdoor loyal feat drake": "FL7icWyial0",
+"meek mill rico feat drake": "EgRrxFsX538",
+"yg why you always hatin ft drake kamaiyah": "n1CLmap_CVU",
+"justin bieber right here ft drake ft drake": "v5UvS_Lc5Aw",
+"drake toosie slide official music video": "xWggTb45brM",
+"drake hold on were going home": "QKYkZnxZ3ZA",
+"drake texts go green": "kFXHPfI2JoI",
+"drake money in the grave ft rick ross": "R0ykLlhg0AQ",
+"drake what did i miss clean": "2RNsuIlXYyk",
+"drake love all ft jayz": "Pnz4wbCblmM",
+"nicki minaj drake lil wayne no frauds": "VkXjvHfP3MM",
+"drake massive": "ay1l_u6vltY",
+"drake away from home": "DYh6CJWdSHY",
+"drake papis home": "RJDZBozre1g",
+"21 savage a lot": "VbrEsOLu75c",
+"21 savage redrum": "ukbiRcyzrpc",
+"21 savage x metro boomin runnin": "jbdROU6eJVg",
+"21 savage bank account": "sV2t3tW_JTQ",
+"21 savage metro boomin no heart": "DbGc9OFMRp4",
+"21 savage red opps": "uMUW5t2MJiI",
+"21 savage metro boomin x ft future": "szKxAdvlCCM",
+"21 savage summer walker prove it": "oa8kjoT-MrM",
+"21 savage x metro boomin glock in my lap": "IShUzOqBqOk",
+"drake 21 savage rich flex": "I4DjHHVHWAE",
+"21 savage offset metro boomin mad stalkers": "ETPBnOlNeOw",
+"21 savage numb": "txqS0QHOrzQ",
+"young nudy peaches eggplants feat 21 savage": "2D17Pat5wWw",
+"metro boomin 10 freaky girls with 21 savage": "48LvZVrlY9A",
+"drake 21 savage hours in silence": "6hfbHSItskQ",
+"21 savage offset metro boomin ghostface killers ft travis scott": "bmc890o0yYY",
+"21 savage 7 min freestyle": "gBGe6GIm52A",
+"drake sneakin ft 21 savage": "KZPgZmOTgCs",
+"21 savage x metro boomin slidin": "9lVt20ogzoY",
+"21 savage all of me": "UpYb4C2--UY",
+"offset metro boomin ric flair drip": "OwbI9IY9Roo",
+"21 savage offset metro boomin ric flair drip official music video": "LPTlvQ1Zet0",
+"drake jimmy cooks ft 21 savage": "V7UgPHjN9qE",
+"21 savage metro boomin no heart official music video": "6wtwpUwxQik",
+"jid surround sound feat 21 savage baby tate official music video": "Y19q-7VN2WI",
+"21 savage x metro boomin rip luv": "-lo5np2zHD0",
+"tayk the race freetayk": "OYhXJaEbw7c",
+"21 savage metro boomin glock in my lap official music video": "acYUqMd9k2I",
+"adin ross she make it clap freestyle ft tory lanez": "H91Ggw9XrRQ",
+"21 savage offset metro boomin rap saved me ft quavo": "LK9rgGmrH7I",
+"kodak black 21 savage lil uzi vert lil yachty denzel curry 2016 xxl freshman cypher": "U_IbIMUbh-k",
+"redrum 21 savage edit audio": "alhquuuNVzE",
+"21 savage red opps shot by azaeproduction": "mWISiHcGoNg",
+"ea feat 21 savage": "piAAJqPbrBU",
+"21 savage a lot ft j cole": "DmWWqogr_r8",
+"future solo": "X2DTROC4JCI",
+"aap rocky i smoked away my brain im god x demons mashup ft imogen heap clams casino": "AT9JoIv2kss",
+"playboi carti evil j0rdan": "zTKheLpo4nQ",
+"travis scott playboi carti future where was you": "um-uRGkT8GU",
+"playboi carti toxic with skepta": "U6jeOBSGI6Q",
+"playboi carti the weeknd rather lie": "fYD7YsSRHOY",
+"lil baby playboi carti skooly lets do it official music video": "Av4AsFPeQ9E",
+"young nudy iced tea ft 21 savage project pat coupe": "mbQc3fFYDu0",
+"post malone rockstar official music video ft 21 savage": "UceaB4D0jpo",
+"travis scott til further notice ft james blake 21 savage": "zptRsa1pqsk",
+"21 savage pad lock": "WUUePkaVxIQ",
+"drake 21 savage spin bout u": "jALeORvCJG8",
+"j cole m y l i f e feat 21 savage morray": "wLQ8u3xRZd8",
+"central cee 21 savage gbp official music video": "_Cu9Df_9Zvg",
+"drake 21 savage circo loco": "jxILuhLm6hs",
+"21 savage immortal": "cUtDb-blEMQ",
+"21 savage air it out": "-yVJ3x8T1jg",
+"lil baby outfit feat 21 savage official visualizer": "C_CzwJ1Cfy4",
+"post malone rockstar ft 21 savage": "4GFAZBKZVJY",
+"drake 21 savage treacherous twins": "jCtsnNpCDo0",
+"drake knife talk ft 21 savage project pat": "3HFY0xuHybk",
+"usher summer walker 21 savage good good official music video": "7jA-tE-4BYI",
+"21 savage money convo": "vwU2NSGHVa4",
+"dj khaled let it go ft justin bieber 21 savage": "kX-dwOlOjc4",
+"21 savage metro boomin gang over everything": "dE3PcZ6S-d4",
+"pharrell williams cash in cash out ft 21 savage tyler the creator": "o9vvbvcc3wo",
+"21 savage drake mr recoup": "kWLTdcWBejU",
+"21 savage travis scott metro boomin nenah": "hSitXYlIqKI",
+"hunxho if only feat 21 savage official visualizer": "rc1NqvpvTIU",
+"rod wave turks caicos ft 21 savage": "ltxOOGKZLs0",
+"rick ross outlawz ft jazmine sullivan 21 savage": "imfiuRkn6WQ",
+"burna boy sittin on top of the world feat 21 savage": "g82-PC0PnXc",
+"21 savage mariah the scientist dark days": "CiFxS8JaUfM",
+"21 savage lil baby atlanta tears": "uaNd7wflN-k",
+"drake money in the grave ft rick ross": "R0ykLlhg0AQ",
+"drake what did i miss clean": "2RNsuIlXYyk",
+"drake love all ft jayz": "Pnz4wbCblmM",
+"nicki minaj drake lil wayne no frauds": "VkXjvHfP3MM",
+"young nudy peaches eggplants ft 21 savage": "MYrU3i9nQtE",
+"rick ross outlawz official music video ft jazmine sullivan 21 savage": "n6OtGSTbPh0",
+"drake sneakin ft 21 savage": "WNW1xRqbt94",
+"jid surround sound feat 21 savage baby tate": "-ybR1bo0a_I",
+"21 savage cup full": "31D23obmXA0",
+"metro boomin the weeknd 21 savage creepin": "-UcFeTfm1oM",
+"drake 21 savage privileged rappers": "lF3K70KR5Xk",
+"21 savage offset metro boomin disrespectful": "WunhSG04ww8",
+"21 savage sneaky": "XlhYUaLVQXc",
+"21 savage jawan harris i wish": "BFDKrMRLE6I",
+"drake 21 savage broke boys": "cE0iNes-bMQ",
+"21 savage cant leave without it": "l5M64JuiZAE",
+"travis scott topia twins ft rob49 21 savage": "J4nvbKBuEBU",
+"yfn lucci pieces on my neck feat 21 savage": "2WHDjhy1gtk",
+"21 savage ball wo you": "G68rIXiy0Bo",
+"21 savage redrum official music video": "U4mADkt6o-M",
+"21 savage brent faiyaz shouldve wore a bonnet": "G4EylYjwHzA",
+"bazzi focus feat 21 savage": "o0IUZKmMxis",
+"tisto both feat 21 savage bia": "zR5GPNpE6hU",
+"21 savage tommy newport mikky ekko red sky": "5_-sIkbYd_M",
+"post malone rockstar ft 21 savage explicit hq": "jONxrPmIUVY",
+"mariah the scientist 77 degrees ft 21 savage": "mZrE2OXeCys",
+"21 savage dead people": "Z_OAGfLKJb4",
+"drake 21 savage on bs": "PNFZHl1H8zY",
+"21 savage metro boomin ocean drive": "ZkRJ59tB1D8",
+"21 savage cold heart feat travis scott": "HslKb9YgpDs",
+"post malone rockstar ft 21 savage": "LLKbtcwS6Ys",
+"21 savage x metro boomin ft young thug rich nigga shit": "zlNCU09gzwc",
+"21 savage doja cat nhie": "xDmb610okx0",
+"21 savage x metro boomin ft drake mr right now": "f4RmrWhQxrM",
+"21 savage at": "zYE7Y0xNgLc",
+"21 savage thug life": "kGqEoXQjHEk",
+"21 savage betrayed": "yqr5m5-E8Ps",
+"21 savage lil durk metro boomin dangerous": "Gy6urUcig5A",
+"drake knife talk ft 21 savage project pat": "XqpQpt_cmhE",
+"21 savage spiral": "g59R3fMnUuc",
+"dababy sticked up ft 21 savage": "4WdQslaS3d8",
+"drake 21 savage major distribution": "LfPYX03_4rA",
+"jid surround sound ft 21 savage baby tate": "ammmaaurdxI",
+"travis scott nc17": "K2taklQnVzY",
+"21 savage offset metro boomin darth vader": "bWv-bR_X-VM",
+"drake 21 savage more ms": "KyDdFcIDVJw",
+"lil durk die slow feat 21 savage": "5dVTGWbsvyY",
+"jid surround sound ft 21 savage baby tate": "Gc3zeSVI9pM",
+"rockstar live ft 21 savage": "LjXy714j3bY",
+"21 savage x metro boomin my dawg": "mVIHEE-nxl0",
+"dj khaled let it go official music video ft justin bieber 21 savage": "QRZJNqoJQFY",
+"21 savage all the smoke": "nYeZKi5pBpM",
+"21 savage facetime": "8QbYtqrrB4M",
+"21 savage nothin new": "FSDkCp5S_qU",
+"sweater weather": "Ao81ziiXHhs",
+"the neighbourhood reflections": "x47TgeRJtH0",
+"the neighbourhood daddy issues": "vnLAa6_hB9A",
+"the neighbourhood softcore": "ggG9ySCChYw",
+"the neighbourhood afraid": "O83tqQpa9xk",
+"the neighbourhood the beach": "DujKJ1OaLQE",
+"the neighbourhood wdywfm": "Oq-xMg1xbic",
+"fallen star": "54kTO17-j_0",
+"the neighbourhood a little death": "bRfMwoIizTQ",
+"the neighbourhood stargazing": "zZM_a-MzlmM",
+"the neighbourhood scary love": "4n-AbC6GK1Y",
+"the neighbourhood leaving tonight": "sLXx1WUJRIA",
+"prey": "2IE3T9mcqyM",
+"the neighbourhood you get me so high": "jCSvOtUaI8s",
+"the neighbourhood nervous": "XTDH7gSqwiQ",
+"sweater weather": "UBUXDUtZZnI",
+"the neighbourhood icanteven ft french montana": "o-y0OInjJFg",
+"the neighbourhood wires": "BExvUjzeXPw",
+"the neighbourhood 247": "pEue3Tchdvc",
+"the neighbourhood compass": "j56dEcq7ryo",
+"the neighbourhood private": "fz7Ox8pkC5o",
+"the neighbourhood softcore im too consumed with my own life": "ZPyyVdK-HeI",
+"the neighbourhood sweater weather": "GCdwKhTtNNw",
+"the neighbourhood flawless visualette": "Cs9M0a5qYko",
+"the neighbourhood daddy issues": "jKIK__j1Nno",
+"the neighbourhood sweater weather": "08WiUcJmnZc",
+"the neighbourhood you get me so high": "wD1wouWYrEI",
+"the neighbourhood softcore": "QkSROKFtIhw",
+"the neighbourhood cry baby": "wW6MsPkAJUs",
+"i wanna be yours": "nyuo9-OjNNg",
+"the neighbourhood wiped out": "Z3UCVQIjAJ8",
+"the neighbourhood paradise": "BzbRHsyjIzk",
+"the neighbourhood over the influence": "seYAyHctExQ",
+"the neighbourhood void": "agdObcVqqMU",
+"warm": "QBV-YCA-CkA",
+"the neighbourhood everybodys watching me uh oh": "dMfWmyx1VLU",
+"the neighbourhood stuck with me": "UWBC2bv5O7U",
+"the neighbourhood how": "L0OORjXAtxg",
+"the neighbourhood lovebomb": "XkU2ViQ8gr0",
+"foo fighters the sky is a neighborhood official music video": "TRqiFPpw2fY",
+"foo fighters the sky is a neighborhood": "F3crJmEPs1I",
+"the neighbourhood daddy issues": "gzA53VsWCr8",
+"the neighbourhood float": "Bd2yNVan0sc",
+"unfair": "Cr6dyKPOyTw",
+"ting": "Zt4EYmXCy4I",
+"the neighbourhood blue": "FtzhMu95LxY",
+"the neighbourhood omg": "rNvNVEaQbZo",
+"ui": "l6x_WDOHQVc",
+"the neighbourhood daddy issues remix": "aoydhMb72QY",
+"the neighbourhood cherry flavoured": "8Be-7rsQv9c",
+"the neighbourhood too serious": "gmzq0Zx3ae8",
+"the neighbourhood a little death": "LVqGRJLEj28",
+"the neighbourhood syd daddy issues remix": "eL78gCGgXWo",
+"the neighbourhood the shining": "1GG0YSzGmd4",
+"the neighbourhood reflections": "w8HRWG0hkbQ",
+"the neighbourhood honest official lyric video": "qqXjt5WFPgc",
+"the neighbourhood reflections": "GJNdR_MKuDM",
+"daddy issues remixthe neighbourhood songs": "fYgqX4cKIjI",
+"the neighbourhood alleyways visualette": "qVwckL8Q3_Y",
+"the neighbourhood daddy issues remix": "6EF9s3xnS6U",
+"reflections the neighbourhood follow for more lyricsreflections theneighbourhood lyrics music": "izJkFwCOBds",
+"lil rob neighborhood music": "dD5UgD7DrFo",
+"the neighbourhood yellow box": "9NZPvybqJfY",
+"wdywfm the neighbourhood lyrics read desc": "ExfmVW-aDGI",
+"the neighbourhood sadderdaze": "ALwoKots_sg",
+"the neighbourhood pressure": "iEOTnULIqTM",
+"the neighbourhood mama drama": "nP0V0p5y5FI",
+"the neighbourhood baby came home 2 valentines": "WkNE5WGyz0k",
+"lil durk neighborhood hero": "CM2mBn2PT-0",
+"the neighbourhood softcore sub espaol e ingls": "egxx7xf1dlY",
+"the neighbourhood fallen star extended": "JXzoZhPVjHc",
+"the neighbourhood the beach demo": "asgAFnELvsE",
    "xavier wulf cyber city": "gCwUQzk5L2k",
    "xavier wulf nightshift": "HHEYzrcy2xU",
    "xavier wulf jack wulf sparrow": "WM6g8pjiEqQ",
@@ -1415,6 +3668,13 @@ const LINKEngine = {
                 },
                 'onStateChange': (e) => {
                     if (e.data === YT.PlayerState.ENDED) Queue.next();
+                      if(e.data === YT.PlayerState.PLAYING) {
+                        AdShield.isAdDetected = false; // Reset flag when playing normally
+                        AdShield.monitorAdState(this.player); // Start monitoring
+                    } else {
+                        AdShield.isAdDetected = false; // Reset if paused
+                        if(AdShield.detectionInterval) clearInterval(AdShield.detectionInterval);
+                    }
                 },
                 'onError': (e) => {
                     Log.err('LINK', 'YouTube Error');
@@ -1831,6 +4091,160 @@ const API = {
     }
 };
 
+const Wrapped = {
+    calculate() {
+        const history = State.history;
+        if (!history || history.length < 5) {
+            UI.toast("Need more listening history");
+            return false;
+        }
+
+        // Calculations
+        const topArtists = {};
+        const topGenres = {};
+        const trackIds = new Set();
+        let totalMs = 0;
+
+        history.forEach(t => {
+            if (!topArtists[t.artistName]) topArtists[t.artistName] = 0;
+            topArtists[t.artistName]++;
+
+            if (t.primaryGenreName) {
+                if (!topGenres[t.primaryGenreName]) topGenres[t.primaryGenreName] = 0;
+                topGenres[t.primaryGenreName]++;
+            }
+            totalMs += (t.trackTimeMillis || 180000);
+            trackIds.add(t.trackId);
+        });
+
+        // "Age" algorithm based on genres
+        let score = 0;
+        const dominantGenre = Object.keys(topGenres).sort((a, b) => topGenres[b] - topGenres[a])[0];
+        if (dominantGenre.includes('Pop')) score += 14;
+        if (dominantGenre.includes('Rock')) score += 35;
+        if (dominantGenre.includes('Hip-Hop')) score += 20;
+        if (dominantGenre.includes('Classical')) score += 50;
+        if (dominantGenre.includes('Country')) score += 45;
+
+        State.wrapped.data = {
+            totalHours: (totalMs / (1000 * 60 * 60)).toFixed(1),
+            topArtists: Object.entries(topArtists).sort((a, b) => b[1] - a[1]).slice(0, 3).map(x => x[0]),
+            topGenres: Object.entries(topGenres).sort((a, b) => b[1] - a[1]).slice(0, 3).map(x => x[0]),
+            trackCount: history.length,
+            estimatedAge: 16 + (score / 1.5),
+            dominantGenre: dominantGenre
+        };
+        return true;
+    },
+    renderSlide() {
+        const container = document.getElementById('wrapped-slide-container');
+        if (!container) return;
+        const data = State.wrapped.data;
+        const slide = State.wrapped.slide;
+        let html = '';
+
+        if (slide === 0) {
+            html = `<div class="animate-slide-up space-y-4">
+                        <h1 class="text-6xl font-black tracking-tighter" style="color: var(--text-primary);">SNIPLIT<br>WRAPPED</h1>
+                        <p class="text-xs font-mono uppercase tracking-widest" style="color: var(--text-tertiary);">Your Personal review.</p>
+                    </div>`;
+        } else if (slide === 1) {
+            html = `<div class="animate-slide-up space-y-2">
+                        <p class="text-xs font-bold uppercase tracking-widest" style="color: var(--text-tertiary);">Total Airtime</p>
+                        <h2 class="text-8xl font-black tracking-tighter" style="color: var(--text-primary);">${data.totalHours}<span class="text-2xl ml-2" style="color: var(--text-tertiary);">HRS</span></h2>
+                    </div>`;
+        } else if (slide === 2) {
+            html = `<div class="animate-slide-up space-y-8 w-full">
+                        <p class="text-xs font-bold uppercase tracking-widest" style="color: var(--text-tertiary);">Top Artist</p>
+                        <div class="space-y-6">
+                            <h3 class="text-4xl font-black" style="color: var(--text-primary);">${data.topArtists[0] || 'Unknown'}</h3>
+                            <h3 class="text-2xl font-bold opacity-50" style="color: var(--text-primary);">${data.topArtists[1] || ''}</h3>
+                            <h3 class="text-xl font-bold opacity-30" style="color: var(--text-primary);">${data.topArtists[2] || ''}</h3>
+                        </div>
+                    </div>`;
+        } else if (slide === 3) {
+            html = `<div class="animate-slide-up space-y-2">
+                        <p class="text-xs font-bold uppercase tracking-widest" style="color: var(--text-tertiary);">Audio Age</p>
+                        <h2 class="text-8xl font-black tracking-tighter" style="color: var(--text-primary);">${Math.floor(data.estimatedAge)}<span class="text-2xl ml-2" style="color: var(--text-tertiary);">YRS</span></h2>
+                        <p class="text-sm opacity-50">Based on your taste in ${data.dominantGenre}</p>
+                    </div>`;
+        } else if (slide === 4) {
+            html = `<div class="animate-slide-up space-y-6"><h1 class="text-4xl font-black" style="color: var(--text-primary);">The End.</h1><p class="text-xs font-mono uppercase" style="color: var(--text-tertiary);">Keep Listening.</p></div>`;
+            const btn = document.getElementById('wrapped-next-btn');
+            if (btn) {
+                btn.innerText = "Close";
+                btn.onclick = () => {
+                    const m = document.getElementById('wrapped-modal');
+                    if (m) m.classList.add('hidden');
+                }
+            }
+        }
+        container.innerHTML = html;
+        const btn = document.getElementById('wrapped-next-btn');
+        if (btn && slide < 4) {
+            btn.classList.remove('hidden');
+            btn.innerText = "Next";
+            btn.onclick = () => Wrapped.nextSlide();
+        }
+    },
+    nextSlide() {
+        if (State.wrapped.slide < 4) {
+            State.wrapped.slide++;
+            this.renderSlide();
+        }
+    }
+};
+
+// --- DATA MANAGER ---
+const DataManager = {
+    exportConfig() {
+        const data = {
+            user: State.user,
+            preferences: State.preferences,
+            favorites: State.favorites,
+            playlists: State.playlists,
+            followedArtists: State.followedArtists,
+            blockedArtists: State.blockedArtists,
+            exportedAt: new Date().toISOString()
+        };
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `sniplit-backup-${Date.now()}.json`;
+        a.click();
+        UI.toast("Config Exported");
+    },
+    importConfig(input) {
+        const file = input.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            try {
+                const data = JSON.parse(e.target.result);
+                if (data.user) State.user = data.user;
+                if (data.preferences) State.preferences = data.preferences;
+                if (data.favorites) State.favorites = data.favorites;
+                if (data.playlists) State.playlists = data.playlists;
+                if (data.followedArtists) State.followedArtists = data.followedArtists;
+                if (data.blockedArtists) State.blockedArtists = data.blockedArtists;
+
+                // Save to DB
+                await Database.save('user_name', State.user);
+                await Database.save('preferences', State.preferences);
+                await Database.savePlaylists(State.playlists);
+                await Database.saveList('followed', State.followedArtists);
+                await Database.saveList('blocked', State.blockedArtists);
+
+                UI.toast("Import Successful");
+                setTimeout(() => location.reload(), 1000);
+            } catch (err) {
+                UI.triggerAlert("Error", "Invalid JSON file");
+            }
+        };
+        reader.readAsText(file);
+    }
+};
 // --- UI MANAGER ---
 const UI = {
     async init() {
