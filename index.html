@@ -350,10 +350,7 @@
                         <button onclick="UI.openAddToPlaylist()"
                             class="p-3 surface rounded-full transition active:scale-90 border border-[var(--border-subtle)] shadow-lg hover:border-[var(--accent-secondary)]"><i
                                 data-lucide="plus" class="w-5 h-5" style="color: var(--text-tertiary);"></i></button>
-                        <button onclick="UI.blockCurrentArtist()"
-                            class="p-3 surface rounded-full transition active:scale-90 border border-[var(--border-subtle)] shadow-lg hover:text-red-500"
-                            title="Block Artist"><i data-lucide="ban" class="w-5 h-5"
-                                style="color: var(--text-tertiary);"></i></button>
+                      
                     </div>
                 </div>
 
@@ -395,6 +392,7 @@
                     </button>
                 </div>
             </div>
+            
         </div>
 
         <!-- === QUEUE SLIDE UP === -->
@@ -649,7 +647,6 @@
         <!-- === HIDDEN INPUTS === -->
         <input type="file" id="local-file-input" class="hidden" accept="audio/*" multiple>
     </div>
-
     <script src="src/main.js"> </script>
 </body>
 
