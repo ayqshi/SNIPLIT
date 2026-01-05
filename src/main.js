@@ -8,303 +8,201 @@ const CONFIG = {
     SCROLL_MEMORY: true
 };
 
-// --- AD SHIELD & LAUNCHER SIMULATION ---
-// --- COMPREHENSIVE AD SHIELD & LAUNCHER SIMULATION ---
+// --- COMPREHENSIVE AD SHIELD ---
 const AdShield = {
     config: {
-        enabled: true,
-        launcherMode: false, // Immersive mode
-        freezeThreshold: 4, // Seconds to consider frozen
-        maxRetries: 2
+        enabled: true, // Master switch
+        freezeThreshold: 4, // Seconds to consider "stuck"
+        maxRetries: 3 // Max session refreshes before giving up
     },
     
     state: {
         lastTime: 0,
         isAdDetected: false,
         retryCount: 0,
-        monitorInterval: null,
-        observer: null,
-        sessionKey: ''
+        monitoringInterval: null,
+        adDetectedCount: 0
     },
 
     // --- 1. INITIALIZATION ---
     init() {
         if(!this.config.enabled) return;
         
-        this.state.sessionKey = `sniplit_s_${Math.floor(Math.random() * 1000000)}`;
-        this.bindEvents();
-        this.setupObserver();
-        this.startMonitoring();
+        // Hook into YouTube Engine lifecycle to monitor for ads
+        const originalLoad = YouTubeEngine.load;
+        const originalPlay = YouTubeEngine.play;
+        const originalPause = YouTubeEngine.pause;
+        const originalStop = YouTubeEngine.stop;
         
-        Log.info('AdShield', `Initialized with Session Key: ${this.state.sessionKey}`);
-    },
+        // Wrap YouTube methods
+        YouTubeEngine.load = (track) => {
+            this.state.isAdDetected = false;
+            this.state.retryCount = 0;
+            return originalLoad(track);
+        };
 
-    // --- 2. EVENT BINDING ---
-    bindEvents() {
-        // Hijack Global YouTube API Ready to inject our config
-        if (window.onYouTubeIframeAPIReady) {
-            const originalReady = window.onYouTubeIframeAPIReady;
-            window.onYouTubeIframeAPIReady = (API) => {
-                // Monkey-patch the player config function
-                if (API && API.Config) {
-                    const originalCreate = API.Config;
-                    API.Config = (elementId, config) => {
-                        const finalConfig = {
-                            ...config,
-                            playsinline: 1,
-                            controls: 0,
-                            disablekb: 1,
-                            fs: 0, // Disable fullscreen API (stops ads requesting fullscreen)
-                            modestbranding: 1,
-                            rel: 0 // Prevent related info fetching (reduces ad tracking)
-                        };
-                        
-                        // Apply Launcher Mode settings if active
-                        if(this.config.launcherMode) {
-                            finalConfig.width = '100%';
-                            finalConfig.height = '100%';
-                        }
+        YouTubeEngine.play = () => {
+            this.state.isAdDetected = false;
+            this.state.retryCount = 0;
+            return originalPlay();
+        };
 
-                        return originalCreate(elementId, finalConfig);
-                    };
+        YouTubeEngine.pause = () => {
+            this.state.isAdDetected = false;
+            return originalPause();
+        };
+
+        YouTubeEngine.stop = () => {
+            this.state.isAdDetected = false;
+            return originalStop();
+        };
+
+        // --- THEORY 1: URL PARAMETER INJECTION (Anti-Overlay) ---
+        // This hijacks the loadVideoById to append anti-ad parameters automatically.
+        const originalLoadVideo = YouTubeEngine.player.loadVideoById;
+        if (YouTubeEngine.player) {
+            YouTubeEngine.player.loadVideoById = (videoId, startSeconds, suggestedQuality) => {
+                // Add Anti-Overlay Params
+                // iv_load_policy=3: Hide skip button, suggest quality, etc.
+                const antiAdParams = '?iv_load_policy=3&modestbranding=1&showinfo=0';
+                const finalId = videoId + antiAdParams;
+
+                // If startSeconds are provided (which happens when refreshing), append them
+                if (startSeconds !== undefined) {
+                    finalId += `&start=${startSeconds}`;
                 }
-                originalReady(API);
+
+                return originalLoadVideo(finalId, startSeconds, suggestedQuality);
             };
         }
 
-        // Hook into AudioEngine to monitor state changes
-        if (AudioEngine.el) {
-            AudioEngine.el.addEventListener('timeupdate', () => this.onPlaybackProgress());
-            AudioEngine.el.addEventListener('waiting', () => this.triggerBypass('Buffering (Ad Freeze)'));
-        }
+        // Start Monitoring
+        this.startMonitoring();
+        
+        Log.info('AdShield', 'Active: Param Injection + Time Freeze + Playback Logic');
     },
 
-    // --- 3. OBSERVER (DOM OVERLAY DETECTION) ---
-    setupObserver() {
-        // MutationObserver to detect specific ad elements being injected into DOM
-        // Note: This only works if the Ad scripts inject DOM into the current tab.
-        const observer = new MutationObserver((mutations) => {
-            mutations.forEach((mutation) => {
-                mutation.addedNodes.forEach((node) => {
-                    // Check for known Ad overlay classes
-                    if (node.nodeType === 1) { // Element
-                        if (node.classList && (
-                            node.classList.contains('ytp-ad-persistent-overlay') ||
-                            node.classList.contains('ytp-ad-overlay') ||
-                            node.classList.contains('ytp-ad-persistent-overlay-text') ||
-                            node.classList.contains('ytp-paid-content-overlay') ||
-                            node.classList.contains('ytp-error-overlay')
-                        )) {
-                            this.triggerBypass('DOM Overlay Detected');
-                        }
-                        
-                        // Check for "More" button ad
-                        if (node.id && node.id.includes('top-menu')) {
-                            this.triggerBypass('Ad Menu Detected');
-                        }
-                    }
-                });
-            });
-        });
-
-        // Observe body for changes
-        this.state.observer = observer;
-        document.body && observer.observe(document.body, {
-            childList: true,
-            subtree: true
-        });
-    },
-
-    // --- 4. MONITORING (FREEZE DETECTION) ---
+    // --- 2. START MONITORING ---
     startMonitoring() {
-        if (this.state.monitorInterval) clearInterval(this.state.monitorInterval);
+        if (this.state.monitoringInterval) clearInterval(this.state.monitoringInterval);
 
-        this.state.monitorInterval = setInterval(() => {
+        this.state.monitoringInterval = setInterval(() => {
             this.checkTimeFreeze();
-        }, 1000);
+            this.checkPlaybackGlitch();
+        }, 2000); // Check every 2 seconds
     },
 
-    onPlaybackProgress() {
-        const currentTime = AudioEngine.isYouTubeMode && YouTubeEngine.player 
-            ? YouTubeEngine.player.getCurrentTime() 
-            : AudioEngine.el.currentTime;
-
-        if (currentTime && currentTime > 5) {
-            // Reset frozen counter if time is moving normally
-            this.state.lastTime = currentTime; 
-            this.state.isAdDetected = false;
-        }
-    },
-
+    // --- 3. DETECT: TIME FREEZE (The "Frozen Video" Theory) ---
     checkTimeFreeze() {
-        const currentTime = AudioEngine.isYouTubeMode && YouTubeEngine.player 
-            ? YouTubeEngine.player.getCurrentTime() 
-            : AudioEngine.el.currentTime;
+        if (!State.isYouTubeMode || !YouTubeEngine.player) return;
+        if (!State.isPlaying) return; // Only check if playing
+
+        const currentTime = YouTubeEngine.player.getCurrentTime();
+        const duration = YouTubeEngine.player.getDuration();
+
+        // If video is longer than 10s and we are past 10s mark
+        if (currentTime && duration && currentTime > 10) {
+            const timeDelta = Math.abs(currentTime - this.state.lastTime);
             
-        // If playing but time hasn't moved in X seconds
-        if (State.isPlaying && Math.abs(currentTime - this.state.lastTime) < 0.1 && currentTime > 5) {
-            this.state.retryCount++;
-            Log.warn('AdShield', `Playback Frozen (${this.state.retryCount})`);
-            
-            // If stuck multiple times, force bypass
-            if (this.state.retryCount >= 2) {
-                this.triggerBypass('Extended Ad Detected');
-            }
-        } else {
-            if(currentTime) this.state.lastTime = currentTime; // Time moved, reset
-            this.state.retryCount = 0;
-        }
-    },
-
-    // --- 5. BYPASS & RESET LOGIC ---
-    triggerBypass(reason) {
-        Log.info('AdShield', `Triggering Bypass: ${reason}`);
-        this.state.isAdDetected = true;
-        
-        // Visual feedback
-        UI.toast("Optimizing Video Stream...");
-        
-        // 1. Force Reset (The "Switch")
-        setTimeout(() => {
-            this.resetPlayer();
-        }, 100);
-    },
-
-    resetPlayer() {
-        const yt = YouTubeEngine;
-        if (!yt.player) return;
-
-        Log.warn('AdShield', 'Resetting Player Instance');
-
-        try {
-            // 1. Pause video
-            yt.player.pause();
-            yt.player.stopVideo();
-
-            // 2. Clear HTML (Important!)
-            // If we destroy and recreate, it's the cleanest "Switch"
-            const container = document.getElementById('yt-audio-container');
-            if (container) {
-                container.innerHTML = ''; // Wipe DOM
-            }
-
-            // 3. Force reload via hacky API methods
-            // Sometimes simply loadVideoById doesn't reset the ad manifest.
-            // We try to trick the player into a new load sequence.
-            
-            // Trick: Reset internal pointer of player if we can access it (via iframe api)
-            // Since we can't access contentWindow, we rely on the YT Player's own internal state reset.
-            
-            setTimeout(() => {
-                // 4. Re-Load track with anti-ad params
-                const currentTrack = State.currentTrack;
-                if (currentTrack) {
-                    const key = AudioEngine.normalizeKey(`${currentTrack.artistName} ${currentTrack.trackName}`);
-                    const data = YOUTUBE_DB[key];
-
-                    if (data) {
-                        // Anti-Ad URL params
-                        // &end=screen : Tries to trick player into thinking video ended on load.
-                        // &autoplay=1 : Force play.
-                        // &cc_load_policy=1 : Load captions (can interfere with overlays).
-                        const videoId = `${data.v}?end=screen&autoplay=1&cc_load_policy=1&sniplit_sess=${this.state.sessionKey}`;
-                        
-                        yt.player.loadVideoById(videoId);
-                        
-                        // 5. Set Volume (sometimes resets audio context)
-                        yt.player.setVolume(100);
-                        yt.player.unMute();
-                        
-                        // 6. Force Seek (skips pre-roll)
-                        setTimeout(() => {
-                            yt.player.seekTo(0);
-                            yt.player.playVideo();
-                        }, 200);
-                    }
+            // If time hasn't moved (< 0.1s) while playing, it's likely an ad or freeze
+            if (timeDelta < 0.1) {
+                this.state.retryCount++;
+                Log.warn('AdShield', `Time Frozen (Retry: ${this.state.retryCount})`);
+                
+                // Immediate Bypass: Force Session Refresh
+                if (this.state.retryCount >= 2) {
+                    this.triggerRefresh("Time Freeze Detected (Likely Ad)");
                 }
-            }, 300); // Wait for DOM clear to propagate
+            } else {
+                // Time is moving normally, reset retry count
+                this.state.retryCount = 0;
+            }
+        }
+        this.state.lastTime = currentTime;
+    },
 
-        } catch (e) {
-            Log.err('AdShield', `Reset Failed: ${e.message}`);
-            // Fallback: Reload entire page (The "Nuclear" option)
-            // We only do this if multiple resets failed to avoid infinite loops
-            this.state.retryCount++;
-            if(this.state.retryCount > 5) {
-                 window.location.reload();
+    // --- 4. DETECT: PLAYBACK GLITCH (The "Stuck Video" Theory) ---
+    checkPlaybackGlitch() {
+        // Uses a "Sanity Timer".
+        // If 'PLAYING' is true, but time doesn't update for 3 seconds in a row, it's likely an ad.
+        
+        // (We use an internal counter because we poll every 2s)
+        if (!State.isYouTubeMode) return; // Only applies to YT
+
+        // Note: AdShield.setLastTime() is not real, we assume the player was "playing" 
+        // but the polling loop hasn't updated 'this.state.lastTime' recently.
+        
+        // Simplified: If we detected a freeze in the last check, and it's still happening, trigger refresh.
+        if (this.state.isAdDetected) {
+            // We already detected a freeze. Check if it's still stuck.
+            const currentTime = YouTubeEngine.player.getCurrentTime();
+            if (Math.abs(currentTime - this.state.lastTime) < 0.1) {
+                 // Still stuck! Force Reset.
+                 this.triggerRefresh("Persistent Freeze (Likely Ad)");
+            } else {
+                 // Unfroze
+                 this.state.isAdDetected = false;
             }
         }
     },
 
-    // --- 6. LAUNCHER MODE (IMMERSIVE CSS) ---
-    toggleLauncher() {
-        this.config.launcherMode = !this.config.launcherMode;
-        const overlay = document.getElementById('launcher-overlay');
-        const playerContainer = document.getElementById('yt-audio-container');
-        const miniPlayer = document.getElementById('mini-player');
-        const fullPlayer = document.getElementById('full-player');
-
-        if (!overlay || !playerContainer) {
-            console.warn("AdShield: Launcher HTML elements missing");
+    // --- 5. ACTION: TRIGGER REFRESH (The "Switch/Session" Theory) ---
+    triggerRefresh(reason) {
+        this.state.isAdDetected = true; // Lock to prevent double-triggers
+        
+        if (this.state.retryCount >= this.config.maxRetries) {
+            Log.err('AdShield', 'Max Retries Reached. Stopping detection.');
             return;
         }
 
-        if (this.config.launcherMode) {
-            // --- TURN ON (VPN SIMULATION) ---
-            Log.info('AdShield', 'Enabling Launcher Mode');
-            
-            // 1. Visuals
-            if (overlay) overlay.classList.remove('hidden');
-            
-            // 2. Player Styling (Full Screen)
-            // Make the player look like a separate app
-            if (playerContainer) {
-                playerContainer.classList.remove('hidden'); // Ensure visible
-                playerContainer.classList.add('fixed', 'inset-0', 'z-50', 'w-full', 'h-full', 'bg-black');
-                playerContainer.style.width = '100%';
-                playerContainer.style.height = '100vh';
-            }
+        UI.toast("Ad Detected! Rotating Session...");
+        Log.info('AdShield', `Trigger: ${reason}`);
 
-            // 3. Hide other UI
-            document.body.classList.add('overflow-hidden'); // Prevent scrolling body
-            
-            // 4. Hide Full Player UI (if separate) and just show iframe
-            if (fullPlayer) fullPlayer.classList.add('hidden');
-            if (miniPlayer) miniPlayer.classList.add('hidden');
+        const currentTrack = State.currentTrack;
+        if(!currentTrack) {
+            // Fallback reload if no track
+            setTimeout(() => window.location.reload(), 100);
+            return;
+        }
 
-            UI.toast("Launcher Mode: ACTIVE");
+        // 1. Force Stop
+        try {
+            YouTubeEngine.player.stopVideo();
+        } catch(e) {}
 
-        } else {
-            // --- TURN OFF ---
-            Log.info('AdShield', 'Disabling Launcher Mode');
-            
-            // 1. Visuals
-            if (overlay) overlay.classList.add('hidden');
-            
-            // 2. Reset Player Styling
-            if (playerContainer) {
-                playerContainer.classList.remove('fixed', 'inset-0', 'z-50', 'w-full', 'h-full', 'bg-black');
-                // Revert to standard fixed/hidden logic if needed, 
-                // but here we just ensure it's visible.
-                // (Your existing UI code likely handles showing/hiding it)
-            }
-            
-            // 3. Restore UI
-            document.body.classList.remove('overflow-hidden');
-            
-            // 4. Restore Player UI
-            if (fullPlayer) fullPlayer.classList.remove('hidden');
-            if (miniPlayer) miniPlayer.classList.remove('hidden');
-
-            UI.toast("Launcher Mode: INACTIVE");
+        // 2. Destroy and Recreate (The "Switch" Method)
+        // This resets the internal YouTube state completely, often bypassing mid-roll logic.
+        const container = document.getElementById('yt-audio-container');
+        if (container) {
+            // Slightly delay to ensure Stop took effect
+            setTimeout(() => {
+                // Wipe container completely (Cleanest reset)
+                container.innerHTML = '';
+                
+                // Trigger re-init of YouTube engine (which appends iframe)
+                // We need to call the internal init method, or reload track
+                setTimeout(() => {
+                    const key = AudioEngine.normalizeKey(`${currentTrack.artistName} ${currentTrack.trackName}`);
+                    const ytData = YOUTUBE_DB[key];
+                    if (ytData) {
+                        // Force play immediately
+                        State.isYouTubeMode = true;
+                        YouTubeEngine.player.loadVideoById(ytData.v, 0);
+                        
+                        // Reset UI state
+                        State.isPlaying = true;
+                        UI.updatePlaybackState();
+                    }
+                }, 200);
+            }, 100);
         }
     },
 
-    // --- 7. UTILS ---
-    forceUrlRefresh() {
-        // Appends a random timestamp to the current URL to force browser to treat as new load
-        const url = new URL(window.location.href);
-        url.searchParams.set('timestamp', Date.now());
-        window.history.replaceState({}, '', url);
+    // --- 6. ACTION: SET LAST TIME ---
+    // Helper for the Glitch detection
+    setLastTime(time) {
+        this.state.lastTime = time;
+        this.state.isAdDetected = false; // Un-stuck if time moved
     }
 };
 
@@ -974,7 +872,7 @@ const LINK_DB = {
 "charli xcx guess ft billie eilish lyrics": "nIJ5-cayyF4",
 "billie eilish happier than ever": "UVQREpxmN_U",
 "we rizzed billietrending billieeilish rizz rizzgod airplane plane passenger reaction": "4vKZVUYeOXo",
-"armani white billie eilish": "4vYOwhll1fs"
+"armani white billie eilish": "4vYOwhll1fs",
 "gunna toast up": "rzox15rPH7A",
 "heartbeat": "0w8FjPpZHno",
 "les": "L8gGHqPBuZM",
