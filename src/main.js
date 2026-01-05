@@ -213,7 +213,13 @@ const State = {
     lastTabSwitch: Date.now()
 };
 
-const LINK_DB = {}; 
+const LINK_DB = {
+    // Format: "normalized artist name normalized track name": "YouTubeVideoID"
+    "kyslingo grey": "dGLOVZrWBl0",
+    "ken carson overseas": "80M6sAU9DY4",
+    "ken carson freestyle 2": "LcjkHLlcTi4",
+    "ken carson paranoid": "_nkK3GHbBwY"
+};
 
 // --- DATABASE (INDEXEDDB + LOCALSTORAGE FALLBACK) ---
 const Database = {
@@ -436,32 +442,47 @@ const AudioEngine = {
         } catch (e) { Log.warn('Audio', 'Visualizer restricted'); }
     },
 
-    load(track, autoplay = true) {
-        if (!track) return;
-        State.currentTrack = track;
-        State.isLoading = true;
+ load(track, autoplay = true) {
+    if (!track) return;
 
-        if (State.blockedArtists.includes(track.artistName)) {
-            UI.toast("Skipping Blocked Artist");
-            Queue.next();
-            return;
-        }
+    State.currentTrack = track;
+    State.isLoading = true;
 
-        this.el.pause();
-        State.isLINKMode = false;
+    // 1. Stop EVERYTHING first
+    this.el.pause();
+    this.el.removeAttribute('src'); // Strictly remove source
+    this.el.load(); // Reset internal state
 
-        const key = this.normalizeKey(`${track.artistName} ${track.trackName}`);
-        const ytData = LINK_DB[key];
+    // Check for blocked artist
+    if (State.blockedArtists.includes(track.artistName)) {
+        UI.toast("Skipping Blocked Artist");
+        Queue.next();
+        return;
+    }
+
+    // 2. Database Lookup
+    const key = this.normalizeKey(`${track.artistName} ${track.trackName}`);
+    const ytId = LINK_DB[key];
+
+    // 3. Logic: YouTube vs Native
+    // Check if Source is Auto/YT AND we found an ID in the DB
+    const useYouTube = (State.preferences.streamSource === 'auto' || State.preferences.streamSource === 'yt') && ytId;
+
+    if (useYouTube) {
+        // --- PATH A: YOUTUBE ---
+        Log.info('Audio', `Playing via YouTube: ${key}`);
+        State.isLINKMode = true;
         
-        if ((State.preferences.streamSource === 'auto' || State.preferences.streamSource === 'yt') && ytData && LINKEngine.isReady) {
-            if (LINKEngine.loadVideo(ytData.v)) {
-                State.isPlaying = true;
-                UI.updatePlaybackState(); 
-                this.postLoadProcess(track);
-                return;
-            }
-        }
+        // Load the video (using the pending logic if needed)
+        LINKEngine.loadVideo(ytId);
+        
+        if (!autoplay) LINKEngine.pause();
 
+    } else {
+        // --- PATH B: NATIVE (iTunes/Local) ---
+        Log.info('Audio', `Playing via Native: ${track.trackName}`);
+        State.isLINKMode = false;
+        
         this.el.src = track.previewUrl || track.localUrl;
         if (autoplay) {
             const playPromise = this.el.play();
@@ -473,8 +494,11 @@ const AudioEngine = {
                 });
             }
         }
-        this.postLoadProcess(track);
-    },
+    }
+
+    // 4. Finish Up
+    this.postLoadProcess(track);
+},
 
     postLoadProcess(track) {
         State.analytics.tracksPlayed++;
@@ -499,65 +523,117 @@ const AudioEngine = {
         this.updateMediaSession();
     },
 
-    normalizeKey(str) {
-        return str.toLowerCase().replace(/[^\w\s]/gi, '').replace(/\s+/g, ' ').trim();
-    },
+   normalizeKey(str) {
+    if (!str) return '';
+    
+    let clean = str.toLowerCase();
+
+    // 1. Remove "featuring" variations
+    // Matches: (feat. artist), [feat. artist], feat. artist, ft. artist
+    clean = clean.replace(/(\(feat\.|\(ft\.|\[feat\.|\[ft\.| feat\. | ft\. | featuring )[^)]*\)?/gi, '');
+
+    // 2. Remove "problem causing queries" inside brackets
+    // Matches: (Official Video), (Lyrics), [Audio], (Music Video), etc.
+    // This catches most of the differences between iTunes and YouTube titles
+    clean = clean.replace(/(\[.*?\]|\(.*?\))/g, '');
+
+    // 3. Remove Hyphens and everything after (Optional)
+    // Useful if iTunes has "Song - Album Version" but YouTube is just "Song"
+    // Uncomment the next line if you want to ignore everything after a hyphen
+    // clean = clean.split('-')[0];
+
+    // 4. Remove special characters (keep numbers and letters)
+    clean = clean.replace(/[^\w\s]/gi, '');
+
+    // 5. Collapse multiple spaces and trim
+    clean = clean.replace(/\s+/g, ' ').trim();
+
+    return clean;
+},
 
     toggle() {
-        if (State.isLINKMode) { 
-            State.isPlaying ? LINKEngine.pause() : LINKEngine.play(); 
-        } else { 
-            if (!this.el.src) return; 
-            this.el.paused ? this.el.play() : this.el.pause(); 
-        }
-        State.isPlaying = !State.isPlaying;
-        UI.updatePlaybackState(); 
-        
-        if (State.preferences.haptics && navigator.vibrate) navigator.vibrate(15);
-        this.updateMediaSession();
-    },
+    if (State.isLINKMode) { 
+        // YouTube Engine Control
+        State.isPlaying ? LINKEngine.pause() : LINKEngine.play(); 
+    } else { 
+        // Native Engine Control
+        if (!this.el.src) return; 
+        this.el.paused ? this.el.play() : this.el.pause(); 
+    }
+    
+    // Toggle Global State
+    State.isPlaying = !State.isPlaying;
+    UI.updatePlaybackState(); 
+    
+    // Haptics
+    if (State.preferences.haptics && navigator.vibrate) navigator.vibrate(15);
+    
+    // Update Lock Screen Media Session
+    this.updateMediaSession();
+},
 
-    seek(val) {
-        const duration = State.isLINKMode ? LINKEngine.getDuration() : this.el.duration;
-        if (!duration) return;
-        const time = (val / 100) * duration;
-        if (State.isLINKMode) LINKEngine.seekTo(time); else this.el.currentTime = time;
-    },
+   seek(val) {
+    // Determine duration based on active engine
+    const duration = State.isLINKMode ? LINKEngine.getDuration() : this.el.duration;
+    if (!duration) return;
+    
+    // Calculate time in seconds
+    const time = (val / 100) * duration;
+    
+    // Execute seek on active engine
+    if (State.isLINKMode) {
+        LINKEngine.seekTo(time);
+    } else {
+        this.el.currentTime = time;
+    }
+},
 
-    onTimeUpdate(curTime = null, durTime = null) {
-        const currentTime = curTime !== null ? curTime : this.el.currentTime;
-        const duration = durTime !== null ? durTime : this.el.duration;
-        if (!duration) return;
-        
-        State.analytics.totalSecondsListened += 0.3;
+onTimeUpdate() {
+    let currentTime = 0;
+    let duration = 0;
 
-        const pct = (currentTime / duration) * 100;
+    if (State.isLINKMode) {
+        // Get data from YouTube
+        currentTime = LINKEngine.getTime();
+        duration = LINKEngine.getDuration();
+    } else {
+        // Get data from Native Audio
+        currentTime = this.el.currentTime;
+        duration = this.el.duration;
+    }
 
-        const slider = document.getElementById('player-progress');
-        if (slider) {
-            slider.value = pct || 0;
-            const val = slider.value;
-            slider.style.background = `linear-gradient(to right, var(--text-primary) ${val}%, var(--bg-elevated) ${val}%)`;
-        }
+    if (!duration) return;
 
-        const miniBar = document.getElementById('mini-progress');
-        if (miniBar) miniBar.style.width = `${pct || 0}%`;
+    // --- UPDATE UI PROGRESS BAR ---
+    const pct = (currentTime / duration) * 100;
 
-        const curEl = document.getElementById('time-cur');
-        const totEl = document.getElementById('time-total');
-        if (curEl) curEl.innerText = this.formatTime(currentTime);
-        if (totEl) totEl.innerText = this.formatTime(duration);
+    const slider = document.getElementById('player-progress');
+    if (slider) {
+        slider.value = pct || 0;
+        slider.style.background = `linear-gradient(to right, var(--text-primary) ${pct}%, var(--bg-elevated) ${pct}%)`;
+    }
 
-        if (State.preferences.crossfade && currentTime > duration - 6 && !State.isLoading) {
-            Queue.next();
-        }
+    const miniBar = document.getElementById('mini-progress');
+    if (miniBar) miniBar.style.width = `${pct || 0}%`;
 
-        if (Math.floor(currentTime) % 5 === 0 && 'mediaSession' in navigator) {
-            try {
-                navigator.mediaSession.setPositionState({ duration: duration, playbackRate: 1, position: currentTime });
-            } catch (e) { }
-        }
-    },
+    // --- UPDATE TIME TEXT ---
+    const curEl = document.getElementById('time-cur');
+    const totEl = document.getElementById('time-total');
+    if (curEl) curEl.innerText = this.formatTime(currentTime);
+    if (totEl) totEl.innerText = this.formatTime(duration);
+
+    // --- UPDATE MEDIA SESSION (Lock Screen) ---
+    // We do this less frequently to save performance
+    if (Math.floor(currentTime) % 5 === 0 && 'mediaSession' in navigator) {
+        try {
+            navigator.mediaSession.setPositionState({
+                duration: duration,
+                playbackRate: 1,
+                position: currentTime
+            });
+        } catch (e) { }
+    }
+},
 
     formatTime(s) {
         if (!s || isNaN(s)) return "0:00";
@@ -586,44 +662,80 @@ const AudioEngine = {
 const LINKEngine = {
     player: null,
     isReady: false,
+    pendingVideoId: null, // Stores video if we click before API loads
+    container: null,
+
     init() {
-        if (!window.YT) {
+        // 1. Create the hidden container dynamically
+        if (!this.container) {
+            this.container = document.createElement('div');
+            this.container.id = 'yt-audio-hidden-player';
+            // Strictly hidden
+            this.container.style.cssText = 'position: fixed; top: -9999px; width: 1px; height: 1px; opacity: 0; pointer-events: none; visibility: hidden;';
+            document.body.appendChild(this.container);
+        }
+
+        if (window.YT && window.YT.Player) {
+            // API already loaded
+            this.createPlayer();
+        } else {
+            // Load API
             const tag = document.createElement('script');
             tag.src = "https://www.youtube.com/iframe_api";
             document.body.appendChild(tag);
+            
             window.onYouTubeIframeAPIReady = () => {
                 this.createPlayer();
-                this.isReady = true;
             };
         }
     },
+
     createPlayer() {
-        let container = document.getElementById('yt-audio-container');
-        if (!container) {
-            container = document.createElement('div');
-            container.id = 'yt-audio-container';
-            container.style.cssText = 'position:fixed; top:-9999px; width:1px; height:1px; opacity:0; pointer-events:none;';
-            document.body.appendChild(container);
-        }
-        this.player = new YT.Player('yt-audio-container', {
-            height: '1', width: '1', videoId: '',
-            playerVars: { 'playsinline': 1, 'controls': 0 },
+        this.player = new YT.Player('yt-audio-hidden-player', {
+            height: '1',
+            width: '1',
+            videoId: '',
+            playerVars: { 'playsinline': 1, 'controls': 0, 'disablekb': 1 },
             events: {
+                'onReady': (event) => {
+                    this.isReady = true;
+                    Log.success('LINK', 'YouTube Engine Ready');
+                    
+                    // CRITICAL FIX: Play the pending video if we clicked earlier
+                    if (this.pendingVideoId) {
+                        Log.info('LINK', `Loading pending video: ${this.pendingVideoId}`);
+                        this.player.loadVideoById(this.pendingVideoId);
+                        this.pendingVideoId = null;
+                    }
+                },
                 'onStateChange': (e) => {
                     if (e.data === YT.PlayerState.ENDED) Queue.next();
+                },
+                'onError': (e) => {
+                    Log.err('LINK', 'YouTube Error');
+                    // If YouTube fails, fallback to native? 
+                    // (Optional advanced step, but for now just log it)
                 }
             }
         });
     },
-    loadVideo(videoId) {
-        if (!this.isReady) return false;
-        State.isLINKMode = true;
-        this.player.loadVideoById(videoId);
-        return true;
+
+    loadVideo(id) {
+        if (this.isReady && this.player) {
+            this.player.loadVideoById(id);
+            return true;
+        } else {
+            // Not ready yet? Store it.
+            Log.warn('LINK', 'Engine not ready, queuing video...');
+            this.pendingVideoId = id;
+            return false; 
+        }
     },
-    play() { if (this.player) this.player.playVideo(); },
-    pause() { if (this.player) this.player.pauseVideo(); },
-    seekTo(seconds) { if (this.player) this.player.seekTo(seconds, true); },
+    
+    // ... keep your play, pause, seekTo, getTime, getDuration methods the same ...
+    play() { if (this.player && this.player.playVideo) this.player.playVideo(); },
+    pause() { if (this.player && this.player.pauseVideo) this.player.pauseVideo(); },
+    seekTo(seconds) { if (this.player && this.player.seekTo) this.player.seekTo(seconds, true); },
     getTime() { return this.player ? this.player.getCurrentTime() : 0; },
     getDuration() { return this.player ? this.player.getDuration() : 0; }
 };
