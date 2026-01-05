@@ -9,581 +9,302 @@ const CONFIG = {
 };
 
 // --- AD SHIELD & LAUNCHER SIMULATION ---
+// --- COMPREHENSIVE AD SHIELD & LAUNCHER SIMULATION ---
 const AdShield = {
-    isAdDetected: false,
-    detectionInterval: null,
+    config: {
+        enabled: true,
+        launcherMode: false, // Immersive mode
+        freezeThreshold: 4, // Seconds to consider frozen
+        maxRetries: 2
+    },
     
-    // Logic to check for YouTube Ad Overlays
-    checkOverlay() {
-        const iframe = document.querySelector('#yt-audio-container iframe');
-        if(!iframe) return false;
-        
-        try {
-            // Access the content document (CORS might block this in some environments)
-            const iDoc = iframe.contentDocument || iframe.contentWindow.document;
-            if(iDoc) {
-                // Check for common ad classes
-                const ads = iDoc.querySelectorAll('.ytp-ad-overlay, .ytp-ad-persistent-overlay, .ytp-error-overlay, .ytp-paid-content-overlay');
-                if(ads.length > 0) return true;
-            }
-        } catch(e) {
-            // Ignore CORS errors
-        }
-        return false;
+    state: {
+        lastTime: 0,
+        isAdDetected: false,
+        retryCount: 0,
+        monitorInterval: null,
+        observer: null,
+        sessionKey: ''
     },
 
-    // Logic: "Switching iframe src" (Session Refresh)
-    refreshSession() {
-        UI.toast("Ad Detected! Rotating Session...");
-        
-        // 1. Get current track info
-        const currentTrack = State.currentTrack;
-        if(!currentTrack) return;
-        
-        // 2. Destroy existing player
-        if(YouTubeEngine.player) {
-            YouTubeEngine.player.destroy();
-            YouTubeEngine.player = null;
-        }
-        
-        // 3. Clean the container
-        const container = document.getElementById('yt-audio-container');
-        if(container) {
-            container.innerHTML = ''; // Full clear
-        }
-        
-        // 4. Generate a random session ID (Simulate VPN Rotation)
-        const sessionId = Math.floor(Math.random() * 10000);
-        
-        // 5. Create a new player with the "VPN" parameter
-        // Note: We don't actually have different domains, so we append a dummy param.
-        // This forces the YouTube API to treat it as a fresh load.
-        window.onYouTubeIframeAPIReady = () => {
-            YouTubeEngine.isReady = true;
-            Log.info('AdShield', `Session Rotated (ID: ${sessionId})`);
-            // --- UPDATED: YOUTUBE ENGINE (SECURE & HIDDEN) ---
-const YouTubeEngine = {
-    player: null,
-    isReady: false,
-    
-    createPlayer() {
-        // 1. Sandbox the Iframe (Crucial for Security/Hiding)
-        // "allow-scripts": Required for API.
-        // "allow-forms": Required for search/autocomplete.
-        // "allow-same-origin": Required for API.
-        // Omitting "allow-top-navigation": Prevents opening new tabs on ads (Safer).
-        const container = document.getElementById('yt-audio-container-wrapper');
-        
-        // If container doesn't exist, create it dynamically
-        if(!container) {
-            const div = document.createElement('div');
-            div.id = 'yt-audio-container-wrapper';
-            div.style.cssText = 'position:fixed; top:-9999px; left:-9999px; width:1px; height:1px; opacity:0; pointer-events:none;';
-            document.body.appendChild(div);
-        } else {
-            // Clear any previous iframe content manually to ensure "HIDDEN" state
-            container.innerHTML = '';
-        }
-
-        this.player = new YT.Player('yt-audio-container-wrapper', {
-            height: '100%',
-            width: '100%',
-            videoId: '',
-            playerVars: {
-                'playsinline': 1,
-                'controls': 0, // Hides YouTube controls
-                'disablekb': 1, // Hides keyboard shortcut overlay
-                'rel': 0, // Disables "Related Videos" and "Up Next" (DISCREET)
-                'showinfo': 0, // Disables "Watch More" info (SECURE)
-                'iv_load_policy': 3, // Hides annotations (SAFE)
-                'autoplay': 0, // We control play manually
-                'modestbranding': 1, // Removes large YouTube logo (HIDDEN)
-                'origin': window.location.origin 
-            },
-            events: {
-                'onReady': () => {
-                    State.isLoading = false;
-                    Log.info('YT', 'Player Instance Ready');
-                },
-                'onStateChange': (e) => {
-                    // 2. HIDDEN/SECURE: Detect Ads
-                    if (e.data === YT.PlayerState.PLAYING) {
-                        State.isLoading = false;
-                        State.isYouTubeMode = true;
-                        State.isPlaying = true;
-                        UI.updatePlaybackState();
-                        UI.updateMiniPlayerState();
-                    }
-                    if (e.data === YT.PlayerState.ENDED) {
-                        Queue.onTrackEnd();
-                    }
-                    if (e.data === YT.PlayerState.BUFFERING) {
-                        State.isLoading = true;
-                    }
-                }
-            }
-        });
-        
-        // 3. Mask the actual iframe wrapper until needed (HIDDEN)
-        // We set it to display: none initially
-        container.style.display = 'none';
-
-        const tag = document.createElement('script');
-        tag.src = "https://www.youtube.com/iframe_api";
-        const firstScriptTag = document.getElementsByTagName('script')[0];
-        firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
-        
-        window.onYouTubeIframeAPIReady = () => {
-            this.isReady = true;
-            Log.info('YT', 'API Ready (Sandboxed)');
-        };
-    },
-
-    loadVideo(videoId, startSeconds = 0) {
-        if (!this.isReady || !this.player) return false;
-        
-        // REVEAL PLAYER: Only make visible when explicitly playing a track (DISCREET)
-        const container = document.getElementById('yt-audio-container-wrapper');
-        if(container) {
-            container.classList.remove('hidden');
-            container.style.position = 'fixed';
-            container.style.top = '-9999px';
-            container.style.left = '-9999px';
-            container.style.zIndex = '0';
-            container.style.opacity = '0';
-        }
-
-        State.isYouTubeMode = true;
-        State.isLoading = true; 
-
-        this.player.loadVideoById(videoId, startSeconds);
-        this.player.setVolume(100); 
-        this.player.unMute(); 
-        return true;
-    },
-
-    play() { 
-        if(this.player) {
-            this.player.playVideo(); 
-            // REVEAL PLAYER
-            const container = document.getElementById('yt-audio-container-wrapper');
-            if(container) {
-                container.style.opacity = '1';
-                container.style.zIndex = '0'; // Keep hidden position for pure background audio feel
-            }
-        }
-    },
-    pause() { 
-        if(this.player) this.player.pauseVideo(); 
-    },
-    seekTo(seconds) { if(this.player) this.player.seekTo(seconds, true); },
-    getTime() { return this.player ? this.player.getCurrentTime() : 0; },
-    getDuration() { return this.player ? this.player.getDuration() : 0; },
-    
-    // NEW: Hide Player completely (HIDDEN)
-    hidePlayer() {
-        if(this.player) this.player.stopVideo();
-        const container = document.getElementById('yt-audio-container-wrapper');
-        if(container) {
-            container.classList.add('hidden');
-            container.innerHTML = ''; // Wipe memory (SECURE)
-        }
-    }
-};
-
-// --- UPDATED: AUDIO ENGINE (DISCREET) ---
-const AudioEngine = {
-    el: new Audio(),
-    ctx: null,
-    analyser: null,
-    source: null,
-    
+    // --- 1. INITIALIZATION ---
     init() {
-        this.el.crossOrigin = "anonymous";
+        if(!this.config.enabled) return;
         
-        this.el.addEventListener('loadstart', () => { State.isLoading = true; UI.updateMiniPlayerState(); });
-        this.el.addEventListener('canplay', () => { State.isLoading = false; UI.updateMiniPlayerState(); });
-        this.el.addEventListener('timeupdate', () => {
-            if(!State.isYouTubeMode) this.onTimeUpdate();
-            // 2. DISCREET: Update Title only when tab is active or if not hidden
-            this.updateTitle();
-        });
-        this.el.addEventListener('ended', () => {
-            if(!State.isYouTubeMode) Queue.next(); 
-        });
-        this.el.addEventListener('play', () => {
-            if(State.isYouTubeMode) return;
-            State.isPlaying = true;
-            State.isLoading = false;
-            UI.updatePlaybackState();
-            UI.updateMiniPlayerState();
-            if(!this.ctx) this.initAudioContext();
-        });
-        this.el.addEventListener('pause', () => {
-            if(State.isYouTubeMode) return;
-            State.isPlaying = false;
-            UI.updatePlaybackState();
-            UI.updateMiniPlayerState();
-        });
+        this.state.sessionKey = `sniplit_s_${Math.floor(Math.random() * 1000000)}`;
+        this.bindEvents();
+        this.setupObserver();
+        this.startMonitoring();
         
-        setInterval(() => {
-            UI.updateMiniPlayerState(); 
-            if(State.isPlaying && State.isYouTubeMode && YouTubeEngine.player && YouTubeEngine.player.getCurrentTime) {
-                this.onTimeUpdate(YouTubeEngine.player.getCurrentTime(), YouTubeEngine.player.getDuration());
-                LyricsEngine.sync();
-            }
-        }, 300); 
-
-        Log.success('Audio', 'Engine Initialized (Discreet Mode)');
-        YouTubeEngine.init();
+        Log.info('AdShield', `Initialized with Session Key: ${this.state.sessionKey}`);
     },
 
-    initAudioContext() {
-        try {
-            this.ctx = new (window.AudioContext || window.webkitAudioContext)();
-            this.analyser = this.ctx.createAnalyser();
-            this.analyser.fftSize = 2048; 
-            this.source = this.ctx.createMediaElementSource(this.el);
-            this.source.connect(this.analyser);
-            this.analyser.connect(this.ctx.destination);
-            Log.info('Audio', 'Web Audio API Connected');
-        } catch(e) {
-            Log.warn('Audio', 'Visualizer not supported (CORS/Browser restriction)');
-        }
-    },
+    // --- 2. EVENT BINDING ---
+    bindEvents() {
+        // Hijack Global YouTube API Ready to inject our config
+        if (window.onYouTubeIframeAPIReady) {
+            const originalReady = window.onYouTubeIframeAPIReady;
+            window.onYouTubeIframeAPIReady = (API) => {
+                // Monkey-patch the player config function
+                if (API && API.Config) {
+                    const originalCreate = API.Config;
+                    API.Config = (elementId, config) => {
+                        const finalConfig = {
+                            ...config,
+                            playsinline: 1,
+                            controls: 0,
+                            disablekb: 1,
+                            fs: 0, // Disable fullscreen API (stops ads requesting fullscreen)
+                            modestbranding: 1,
+                            rel: 0 // Prevent related info fetching (reduces ad tracking)
+                        };
+                        
+                        // Apply Launcher Mode settings if active
+                        if(this.config.launcherMode) {
+                            finalConfig.width = '100%';
+                            finalConfig.height = '100%';
+                        }
 
-    load(track, autoplay = true) {
-        if(!track) return;
-        State.currentTrack = track;
-        State.isLoading = true; 
-
-        const key = this.normalizeKey(`${track.artistName} ${track.trackName}`);
-        const ytData = YOUTUBE_DB[key];
-        
-        State.isYouTubeMode = false;
-        this.el.pause();
-
-        if (ytData) {
-            Log.info('YT-Audio', `Found Match for: ${key}`);
-            track.trackTimeMillis = ytData.d; 
-            
-            // HIDE: Destroy any existing YouTube instance to ensure clean state
-            YouTubeEngine.hidePlayer();
-
-            if (YouTubeEngine.isReady) {
-                const loaded = YouTubeEngine.loadVideo(ytData.v);
-                if (loaded) {
-                    State.isPlaying = true; 
-                    UI.updatePlaybackState();
-                    UI.updateMiniPlayerState();
-                    this.postLoadProcess(track);
-                    return;
+                        return originalCreate(elementId, finalConfig);
+                    };
                 }
-            } else {
-                Log.warn('YT-Audio', 'API not ready, falling back to preview');
-            }
-        }
-
-        Log.info('Audio', `Loading iTunes Preview: ${track.trackName}`);
-        this.el.src = track.previewUrl || track.localUrl;
-        if(autoplay) {
-            this.el.play().catch(e => {
-                Log.warn('Audio', 'Autoplay prevented');
-                State.isLoading = false;
-            });
-        }
-        
-        this.postLoadProcess(track);
-    },
-
-    postLoadProcess(track) {
-        State.history.unshift(track);
-        State.history = Array.from(new Set(State.history.map(a => a.trackId)))
-            .map(id => State.history.find(a => a.trackId === id))
-            .slice(0, 200);
-        Database.save('history', State.history);
-        
-        State.analytics.tracksPlayed++;
-        Database.saveAnalytics(State.analytics);
-        
-        if(track.primaryGenreName) State.genres.add(track.primaryGenreName);
-        
-        UI.updatePlayerUI();
-        LyricsEngine.fetch(track);
-        this.updateMediaSession();
-        Log.info('Audio', `Loaded: ${track.trackName}`);
-    },
-
-    normalizeKey(str) {
-        return str.toLowerCase().replace(/[^\w\s]/gi, '').replace(/\s+/g, ' ').trim();
-    },
-
-    toggle() {
-        if(State.isYouTubeMode) {
-            if(State.isPlaying) YouTubeEngine.pause();
-            else YouTubeEngine.play();
-        } else {
-            if(!this.el.src) return;
-            this.el.paused ? this.el.play() : this.el.pause();
-        }
-        State.isPlaying = !State.isPlaying;
-        UI.updatePlaybackState();
-        UI.updateMiniPlayerState();
-        if(State.preferences.haptics && navigator.vibrate) navigator.vibrate(20);
-        this.updateMediaSession();
-    },
-
-    seek(val) {
-        const duration = State.isYouTubeMode ? YouTubeEngine.getDuration() : this.el.duration;
-        if(!duration) return;
-        const time = (val / 100) * duration;
-        if(State.isYouTubeMode) YouTubeEngine.seekTo(time);
-        else this.el.currentTime = time;
-    },
-
-    seekByLyric(time) {
-        State.isLoading = true; 
-        if(State.isYouTubeMode) {
-            YouTubeEngine.seekTo(time);
-            YouTubeEngine.play();
-        } else {
-            this.el.currentTime = time;
-            this.el.play();
-        }
-        State.isPlaying = true;
-        UI.updatePlaybackState();
-    },
-
-    // 4. DISCREET: Title Masking
-    updateTitle() {
-        // Check if document has focus (User is looking at it)
-        const hasFocus = document.hasFocus();
-        
-        if (State.currentTrack) {
-            if (hasFocus && State.isPlaying) {
-                // Only show song name if focused and playing
-                document.title = `${Security.safeText(State.currentTrack.trackName)} - ${Security.safeText(State.currentTrack.artistName)}`;
-            } else {
-                // Always hide generic name otherwise
-                document.title = "Sniplit - Music Player";
-            }
-        } else {
-            document.title = "Sniplit";
-        }
-    },
-
-    onTimeUpdate(curTime = null, durTime = null) {
-        const currentTime = curTime !== null ? curTime : this.el.currentTime;
-        const duration = durTime !== null ? durTime : this.el.duration;
-
-        if(!duration) return;
-        const pct = (currentTime / duration) * 100;
-        
-        const slider = document.getElementById('player-progress');
-        if(slider) slider.value = pct || 0;
-        
-        const miniBar = document.getElementById('mini-progress');
-        if(miniBar) miniBar.style.width = `${pct || 0}%`;
-
-        const curEl = document.getElementById('time-cur');
-        const totEl = document.getElementById('time-total');
-        if(curEl) curEl.innerText = this.formatTime(currentTime);
-        if(totEl) totEl.innerText = this.formatTime(duration);
-        
-        State.analytics.totalSecondsListened += 0.3;
-
-        if ('mediaSession' in navigator && State.isPlaying) {
-            try {
-                navigator.mediaSession.setPositionState({
-                    duration: duration,
-                    playbackRate: 1,
-                    position: currentTime
-                });
-            } catch(e) {}
-        }
-    },
-    
-    formatTime(s) {
-        if(!s || isNaN(s)) return "0:00";
-        const m = Math.floor(s/60);
-        const r = Math.floor(s%60);
-        return `${m}:${r < 10 ? '0' : ''}${r}`;
-    },
-
-    updateMediaSession() {
-        if ('mediaSession' in navigator && State.currentTrack) {
-            navigator.mediaSession.metadata = new MediaMetadata({
-                title: State.currentTrack.trackName,
-                artist: State.currentTrack.artistName,
-                album: State.currentTrack.collectionName,
-                // 4. SAFE: Ensure artwork is loaded locally first if possible
-                artwork: [{ src: State.currentTrack.artworkUrl100.replace('100x100', '600x600'), sizes: '600x600', type: 'image/jpeg' }]
-            });
-
-            const actionHandlers = {
-                play: () => { 
-                    this.el.play(); YouTubeEngine.play(); 
-                    State.isPlaying=true; UI.updatePlaybackState(); UI.updateMiniPlayerState();
-                },
-                pause: () => { 
-                    this.el.pause(); YouTubeEngine.pause(); 
-                    State.isPlaying=false; UI.updatePlaybackState(); UI.updateMiniPlayerState();
-                },
-                previoustrack: () => Queue.prev(),
-                nexttrack: () => Queue.next(),
-                seekto: (details) => {
-                    if (details.seekTime && details.seekTime !== undefined) {
-                        const duration = State.isYouTubeMode ? YouTubeEngine.getDuration() : this.el.duration;
-                        const time = details.seekTime;
-                        this.el.currentTime = time;
-                        YouTubeEngine.seekTo(time);
-                        this.onTimeUpdate(time, duration);
-                    }
-                },
-                seekforward: (details) => {
-                    const offset = details.seekOffset || 10;
-                    const time = (State.isYouTubeMode ? YouTubeEngine.getTime() : this.el.currentTime) + offset;
-                    this.seekByLyric(time);
-                },
-                seekbackward: (details) => {
-                    const offset = details.seekOffset || 10;
-                    const time = (State.isYouTubeMode ? YouTubeEngine.getTime() : this.el.currentTime) - offset;
-                    this.seekByLyric(time);
-                }
+                originalReady(API);
             };
-
-            for (const [action, handler] of Object.entries(actionHandlers)) {
-                try { navigator.mediaSession.setActionHandler(action, handler); } catch (e) {}
-            }
         }
-    }
-};
 
-
-document.addEventListener('visibilitychange', handleVisibilityChange);
-            // Immediately load the track again (skipping the pre-roll)
-            YouTubeEngine.player = new YT.Player('yt-audio-container', {
-                height: '100%',
-                width: '100%',
-                videoId: '',
-                playerVars: {
-                    'playsinline': 1,
-                    'controls': 0,
-                    'disablekb': 1,
-                    'origin': window.location.origin,
-                    // 'autoplay': 1 // Try to auto-play immediately
-                },
-                events: {
-                    'onReady': (event) => {
-                         // Force seek to 0 to prevent weird start states
-                         event.target.seekTo(0);
-                         event.target.setVolume(100);
-                         event.target.unMute();
-                    },
-                    'onStateChange': (e) => {
-                         const p = e.target;
-                         if (e.data === YT.PlayerState.PLAYING) {
-                             State.isYouTubeMode = true;
-                             State.isPlaying = true;
-                             UI.updatePlaybackState();
-                             UI.updateMiniPlayerState();
-                         }
-                         if (e.data === YT.PlayerState.ENDED) {
-                             Queue.onTrackEnd();
-                         }
-                         // Check for ad again on state change
-                         AdShield.monitorAdState(p);
-                    }
-                }
-            });
-        };
-        
-        const tag = document.createElement('script');
-        tag.src = "https://www.youtube.com/iframe_api";
-        const firstScriptTag = document.getElementsByTagName('script')[0];
-        firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
-
-        // 6. Reload the track immediately
-        setTimeout(() => {
-            const key = AudioEngine.normalizeKey(`${currentTrack.artistName} ${currentTrack.trackName}`);
-            const ytData = YOUTUBE_DB[key];
-            if (ytData) {
-                YouTubeEngine.player.loadVideoById(ytData.v, 0);
-                State.currentTrack.trackTimeMillis = ytData.d; 
-                UI.updatePlayerUI();
-                LyricsEngine.fetch(State.currentTrack);
-            }
-        }, 500);
+        // Hook into AudioEngine to monitor state changes
+        if (AudioEngine.el) {
+            AudioEngine.el.addEventListener('timeupdate', () => this.onPlaybackProgress());
+            AudioEngine.el.addEventListener('waiting', () => this.triggerBypass('Buffering (Ad Freeze)'));
+        }
     },
 
-    // Logic to monitor state for freezes (Buffering = Ad)
-    monitorAdState(player) {
-        // We use a "Sanity Timer". 
-        // If the player is BUFFERING for > 5 seconds, it's likely an ad.
-        if (this.detectionInterval) clearInterval(this.detectionInterval);
+    // --- 3. OBSERVER (DOM OVERLAY DETECTION) ---
+    setupObserver() {
+        // MutationObserver to detect specific ad elements being injected into DOM
+        // Note: This only works if the Ad scripts inject DOM into the current tab.
+        const observer = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                mutation.addedNodes.forEach((node) => {
+                    // Check for known Ad overlay classes
+                    if (node.nodeType === 1) { // Element
+                        if (node.classList && (
+                            node.classList.contains('ytp-ad-persistent-overlay') ||
+                            node.classList.contains('ytp-ad-overlay') ||
+                            node.classList.contains('ytp-ad-persistent-overlay-text') ||
+                            node.classList.contains('ytp-paid-content-overlay') ||
+                            node.classList.contains('ytp-error-overlay')
+                        )) {
+                            this.triggerBypass('DOM Overlay Detected');
+                        }
+                        
+                        // Check for "More" button ad
+                        if (node.id && node.id.includes('top-menu')) {
+                            this.triggerBypass('Ad Menu Detected');
+                        }
+                    }
+                });
+            });
+        });
 
-        let timeFrozenCounter = 0;
+        // Observe body for changes
+        this.state.observer = observer;
+        document.body && observer.observe(document.body, {
+            childList: true,
+            subtree: true
+        });
+    },
 
-        this.detectionInterval = setInterval(() => {
-            const currentTime = player.getCurrentTime();
-            const state = player.getPlayerState();
+    // --- 4. MONITORING (FREEZE DETECTION) ---
+    startMonitoring() {
+        if (this.state.monitorInterval) clearInterval(this.state.monitorInterval);
 
-            // Check if we are deep in a song (after 10s)
-            if(currentTime && currentTime > 10) {
-                if (state === YT.PlayerState.BUFFERING) {
-                    timeFrozenCounter++;
-                } else {
-                    timeFrozenCounter = 0;
-                }
-            }
-
-            // If frozen for > 5 seconds while playing, trigger refresh
-            if (timeFrozenCounter > 5) {
-                clearInterval(this.detectionInterval);
-                this.refreshSession();
-            }
-
-            // Check for overlay every 2 seconds
-            if(timeFrozenCounter % 2 === 0) {
-                if(this.checkOverlay()) {
-                     clearInterval(this.detectionInterval);
-                     this.refreshSession();
-                }
-            }
-
+        this.state.monitorInterval = setInterval(() => {
+            this.checkTimeFreeze();
         }, 1000);
     },
 
-    // --- FULLSCREEN LAUNCHER LOGIC ---
-    toggleLauncher() {
-        const container = document.getElementById('yt-audio-container');
-        const miniPlayer = document.getElementById('mini-player');
-        if (!container) return;
+    onPlaybackProgress() {
+        const currentTime = AudioEngine.isYouTubeMode && YouTubeEngine.player 
+            ? YouTubeEngine.player.getCurrentTime() 
+            : AudioEngine.el.currentTime;
 
-        if (!State.preferences.fullscreenLauncher) {
-            // Turn OFF: Revert to standard
-            container.classList.remove('fixed', 'inset-0', 'z-50', 'top-0', 'left-0');
-            container.style.height = '200px'; // Reset height
-            container.style.background = 'transparent';
-            document.body.classList.remove('overflow-hidden'); // Re-enable scroll
-            UI.toast("Launcher Mode: OFF");
-        } else {
-            // Turn ON: Fullscreen Immersion
-            UI.togglePlayer(true); // Show player first
+        if (currentTime && currentTime > 5) {
+            // Reset frozen counter if time is moving normally
+            this.state.lastTime = currentTime; 
+            this.state.isAdDetected = false;
+        }
+    },
+
+    checkTimeFreeze() {
+        const currentTime = AudioEngine.isYouTubeMode && YouTubeEngine.player 
+            ? YouTubeEngine.player.getCurrentTime() 
+            : AudioEngine.el.currentTime;
             
-            // Force Fullscreen API
-            if (document.documentElement.requestFullscreen) {
-                document.documentElement.requestFullscreen().catch(err => console.log('Fullscreen denied'));
+        // If playing but time hasn't moved in X seconds
+        if (State.isPlaying && Math.abs(currentTime - this.state.lastTime) < 0.1 && currentTime > 5) {
+            this.state.retryCount++;
+            Log.warn('AdShield', `Playback Frozen (${this.state.retryCount})`);
+            
+            // If stuck multiple times, force bypass
+            if (this.state.retryCount >= 2) {
+                this.triggerBypass('Extended Ad Detected');
+            }
+        } else {
+            if(currentTime) this.state.lastTime = currentTime; // Time moved, reset
+            this.state.retryCount = 0;
+        }
+    },
+
+    // --- 5. BYPASS & RESET LOGIC ---
+    triggerBypass(reason) {
+        Log.info('AdShield', `Triggering Bypass: ${reason}`);
+        this.state.isAdDetected = true;
+        
+        // Visual feedback
+        UI.toast("Optimizing Video Stream...");
+        
+        // 1. Force Reset (The "Switch")
+        setTimeout(() => {
+            this.resetPlayer();
+        }, 100);
+    },
+
+    resetPlayer() {
+        const yt = YouTubeEngine;
+        if (!yt.player) return;
+
+        Log.warn('AdShield', 'Resetting Player Instance');
+
+        try {
+            // 1. Pause video
+            yt.player.pause();
+            yt.player.stopVideo();
+
+            // 2. Clear HTML (Important!)
+            // If we destroy and recreate, it's the cleanest "Switch"
+            const container = document.getElementById('yt-audio-container');
+            if (container) {
+                container.innerHTML = ''; // Wipe DOM
             }
 
-            // CSS Styling to make it look like a "Launcher" (Black bg)
-            container.classList.add('fixed', 'inset-0', 'z-50', 'top-0', 'left-0', 'bg-black');
-            container.style.height = '100vh'; // Force full height
+            // 3. Force reload via hacky API methods
+            // Sometimes simply loadVideoById doesn't reset the ad manifest.
+            // We try to trick the player into a new load sequence.
             
-            // Hide other UI (Optional, for immersion)
-            document.body.classList.add('overflow-hidden');
-            UI.toast("Launcher Mode: ON");
+            // Trick: Reset internal pointer of player if we can access it (via iframe api)
+            // Since we can't access contentWindow, we rely on the YT Player's own internal state reset.
+            
+            setTimeout(() => {
+                // 4. Re-Load track with anti-ad params
+                const currentTrack = State.currentTrack;
+                if (currentTrack) {
+                    const key = AudioEngine.normalizeKey(`${currentTrack.artistName} ${currentTrack.trackName}`);
+                    const data = YOUTUBE_DB[key];
+
+                    if (data) {
+                        // Anti-Ad URL params
+                        // &end=screen : Tries to trick player into thinking video ended on load.
+                        // &autoplay=1 : Force play.
+                        // &cc_load_policy=1 : Load captions (can interfere with overlays).
+                        const videoId = `${data.v}?end=screen&autoplay=1&cc_load_policy=1&sniplit_sess=${this.state.sessionKey}`;
+                        
+                        yt.player.loadVideoById(videoId);
+                        
+                        // 5. Set Volume (sometimes resets audio context)
+                        yt.player.setVolume(100);
+                        yt.player.unMute();
+                        
+                        // 6. Force Seek (skips pre-roll)
+                        setTimeout(() => {
+                            yt.player.seekTo(0);
+                            yt.player.playVideo();
+                        }, 200);
+                    }
+                }
+            }, 300); // Wait for DOM clear to propagate
+
+        } catch (e) {
+            Log.err('AdShield', `Reset Failed: ${e.message}`);
+            // Fallback: Reload entire page (The "Nuclear" option)
+            // We only do this if multiple resets failed to avoid infinite loops
+            this.state.retryCount++;
+            if(this.state.retryCount > 5) {
+                 window.location.reload();
+            }
         }
+    },
+
+    // --- 6. LAUNCHER MODE (IMMERSIVE CSS) ---
+    toggleLauncher() {
+        this.config.launcherMode = !this.config.launcherMode;
+        const overlay = document.getElementById('launcher-overlay');
+        const playerContainer = document.getElementById('yt-audio-container');
+        const miniPlayer = document.getElementById('mini-player');
+        const fullPlayer = document.getElementById('full-player');
+
+        if (!overlay || !playerContainer) {
+            console.warn("AdShield: Launcher HTML elements missing");
+            return;
+        }
+
+        if (this.config.launcherMode) {
+            // --- TURN ON (VPN SIMULATION) ---
+            Log.info('AdShield', 'Enabling Launcher Mode');
+            
+            // 1. Visuals
+            if (overlay) overlay.classList.remove('hidden');
+            
+            // 2. Player Styling (Full Screen)
+            // Make the player look like a separate app
+            if (playerContainer) {
+                playerContainer.classList.remove('hidden'); // Ensure visible
+                playerContainer.classList.add('fixed', 'inset-0', 'z-50', 'w-full', 'h-full', 'bg-black');
+                playerContainer.style.width = '100%';
+                playerContainer.style.height = '100vh';
+            }
+
+            // 3. Hide other UI
+            document.body.classList.add('overflow-hidden'); // Prevent scrolling body
+            
+            // 4. Hide Full Player UI (if separate) and just show iframe
+            if (fullPlayer) fullPlayer.classList.add('hidden');
+            if (miniPlayer) miniPlayer.classList.add('hidden');
+
+            UI.toast("Launcher Mode: ACTIVE");
+
+        } else {
+            // --- TURN OFF ---
+            Log.info('AdShield', 'Disabling Launcher Mode');
+            
+            // 1. Visuals
+            if (overlay) overlay.classList.add('hidden');
+            
+            // 2. Reset Player Styling
+            if (playerContainer) {
+                playerContainer.classList.remove('fixed', 'inset-0', 'z-50', 'w-full', 'h-full', 'bg-black');
+                // Revert to standard fixed/hidden logic if needed, 
+                // but here we just ensure it's visible.
+                // (Your existing UI code likely handles showing/hiding it)
+            }
+            
+            // 3. Restore UI
+            document.body.classList.remove('overflow-hidden');
+            
+            // 4. Restore Player UI
+            if (fullPlayer) fullPlayer.classList.remove('hidden');
+            if (miniPlayer) miniPlayer.classList.remove('hidden');
+
+            UI.toast("Launcher Mode: INACTIVE");
+        }
+    },
+
+    // --- 7. UTILS ---
+    forceUrlRefresh() {
+        // Appends a random timestamp to the current URL to force browser to treat as new load
+        const url = new URL(window.location.href);
+        url.searchParams.set('timestamp', Date.now());
+        window.history.replaceState({}, '', url);
     }
 };
 
@@ -817,7 +538,691 @@ const State = {
 
 
 const LINK_DB = {
+    "wheres your dad at bill": "vn1XjjwYvtw",
+"comehelpglo wheres your dad at bill": "gy53-Trs6DA",
+"comehelpglo dont go": "8kAGUQg9odI",
+"comehelpglo lean stained nikes": "GYm68G9V8zo",
+"comehelpglo calm down it gets worse": "itJjEVzUn4c",
+"comehelpglo let it show": "yGEJMQWXlS0",
+"comehelpglo has all this been a dream": "XKfvUZI8FrM",
+"can we all be alone": "1I6CRW8ObAE",
+"miss213": "Z5faY6KN3sI",
+"whats that noise": "nyqZHCg-K5k",
+"whateverheres my list of regrets": "ZHpJ_gGOgW0",
+"rotten rose and a coke stuffed nose": "sEan95qdPy4",
+"comehelpglo when my time comes tell me will i stand up": "_UPe55dG3tQ",
+"heartshapeddrugs": "slJMzs681tc",
+"in the end will you remember me": "-wYt1_8Omp0",
+"neverhadtoleavebeforeyouwreckedeverything": "2EFbwxZN2mc",
+"comehelpglo angels in the sky": "1RRIQEpH4WI",
+"icecoldviens": "EeIRHCcqIRk",
+"i cant believe you did this": "TpaT0aWr2e4",
+"comehelpglo everyone left when i went to rehab official music video": "FLjEi9XMxXo",
+"comehelpglo dreams of who i once was feat shlumpy": "v9ew1y3Eyds",
+"comehelpglo god im sad as shit 432hz": "EIh1TeSbHGU",
+"i feel the rain comehelpglo": "_rYf-3Dnguk",
+"stay broke": "tvyAFkmwY9Y",
+"comehelpglo god im sad as sht 432hz": "U3qhjRwqcuk",
+"imisshome": "WehmUEO0ByY",
+"comehelpglo thunder storm": "77ROcAteRx0",
+"comehelpglo miss213": "hSLAyQGzXGg",
+"comehelpglo whateverheres my list of regrets official music video": "7YOlD4nFN3g",
+"comehelpglo ihavenothingbuteverything": "MadibNimpFg",
+"dead prodigy": "rPFkgv1A48g",
+"vvs feat pobear": "G7kOZT57l7k",
+"skintoskin": "XPeciM2LR6Y",
+"comehelpglo i blame myself for things i couldnt control": "2oIz0w26Xyg",
+"ashes feat comehelpmae": "vNOG1k0VVTs",
+"angels in the sky comehelpglo": "vlpI2FDgrvw",
+"comehelpglo i would rather go to sleep then think of you": "R953LdAU1oY",
+"ghost of ytei comehelpglo god im sad as sht lyrics video": "CumRJ6uKW5E",
+"dime bags at corna stores": "rweyn2N1SWQ",
+"everyone left when i went to rehab": "mfeBtNuPf_w",
+"kinda cold in here": "yioGoZ3BC5w",
+"comehelpglo x shlumpy pale white dope sack": "e7E29cFo99o",
+"dreams of who i once was comehelpglo": "4DDPDKMIo-A",
+"comehelpglo god im sad as sht official music video": "usJnsoh5xS4",
+"comehelpglo in the end will you remember me official music video": "IAUqFxNR-yY",
+"comehelpglo neverhadtoleavebeforeyouwreckedeverything": "zNO3AwDIMew",
+"comehelpglo can we all be alone": "nMv9QkobZwc",
+"comehelpglo angels in the sky official music video": "yO_s9vkiAN8",
+"comehelpglo whateverheres my list of regrets": "4p7J0l8RzuI",
+"comehelpglo cobwebs instrumental only high quality": "zwF-tYFdhik",
+"comehelpglo thunder storm warframe edit": "HqrxKsE3P-M",
+"comehelpglo god im sad as sht slowed and reverb": "20X6WX_b_lA",
+"comehelpglo god im sad as shit": "bY-m1HSxyHs",
+"yall changed my life bandlab indierock tiktokviral thxsomch newmusic": "4PKQASde_M8",
+"guess the song guitar": "Iuxwu31L_XM",
+"1123pm feat comehelpglo": "OBbLq0o_PTQ",
+"comehelpglo dreams of who i once was feat shlumpy instrumental only": "0bIAh5bJxQI",
+"honestav id rather overdose ft z i cant let you go official music video": "cq43FrpXGQs",
+"honestav id rather overdose feat z": "gTYXvLkc-dE",
+"this rapper sounds like peep x uicideboy comehelpglo reaction": "rJe7Ud92arg",
+"free comehelpglo x sample type beat call me": "HUcH8Z1keYA",
+"free comehelpglo type beat dazed": "bMqhlkUqFpk",
+"duke dennis reacts to glorilla asking him out": "IOk8N-VImQk",
+"kid from all these niggas video started crying when he got a von shirt rip king von": "MQJFmIw-aTI",
+"he had no idea i could rap": "sBD_DiPdkPs",
+"how to get professional sound layering vocals on bandlab bandlab bandlabpresets presetsquad": "hHtmGJCayT4",
+"smokedope2016 2016lyfe official music video": "PXHm-sQCzko",
+"youtube shorts guitar tutorials be like": "iPcYWJYLqL8",
+"make your own beats in bandlab": "CKEBVjk4JeI",
+"how to make a hit song in less than 30 seconds": "ZIri_M43M3Q",
+"cobwebs": "dnhy-swgjRs",
+"rick rubin shares his secrets for creativity": "36L9cYkHyZM",
+"wait til the end": "ccMrTOoay64",
+"matt maeson never had to leave": "iiUgz-EkSgE",
+"41998769592": "xvv6NwvNsGc",
+"what is a free for profit type beat": "ijVR2IPpg4U",
+"they paid 500hr for studio time": "KixrH1GTn7o",
+"glorilla glos prayer": "NS9mrSIL7Rs",
+"real boston richey help me": "Y3Ih1ReN9xA",
+"big boogie mental healing boxedinliveperformance boxedin_ wikidfilms": "yt7rJzhuN1c",
+"what angels really look like angels fyp xyzbca": "5FTOHBR8FCI",
+"how to get that choir effect": "IKXqnZhZ_8Y",
+"ishowspeed made a hit ishowspeed ishowspeedshorts producer escape plan prodby its wayv": "AZV2-kDyzu8",
+"layering vocal hooks bandlab": "7vEV1CtuhbQ",
+"tears of broken heart sad emotional video animation reelsindia love storytelling": "R0TDhvXbfHc",
+"i regret everythingprodjaxxee": "ncef04MP0F8",
+"how is this artist still underground comehelpglo reaction shorts comehelpglo suicideboys": "yjmE-lHtTSQ",
+"melodic vocals on autotune bandlab bandlab howto kidd1bluck": "4zPGiiPeEZM",
+"how to break garage band": "XNT18Dobdn4",
+"comehelpglo angels in the sky sped up nightcore": "F0S2yGuif4M",
+"how to find your style as an artist finding your sound": "yAQGQ2Ok6W0",
+"im trying to move on": "5NbQ7TbrHMs",
+"slow motion": "wPIH3IOzEIc",
+"bandlab rappers be like": "av4fPx-Hapw",
+"how to get clear vocals on bandlab shorts bandlab vocalpreset": "io9DBy8JMkQ",
+"how to record a song with your phone on bandlab": "fwV6M8acpsI",
+"one preset for clear vocals bandlab": "lTsVF_HFSaI",
+"lil peep save that shit": "WvV5TbJc9tQ",
+"come help glow type beat": "kJwdMLtufpQ",
+"fairfield fade away smokedope2016 old soundcloud": "4Yrcqc0Q3M0",
+"gelo can you please feat glorilla": "UkDgPY9ApXY",
+"how to mix your vocals in bandlab": "5ie5hVc8dnE",
+"how to start a music career 50cent music rap": "Jwxp0boHAcE",
+"chief keef bankroll fresh glo type beat spot pieruun": "W-Ca2qoscdQ",
+"free acoustic guitar type beat regrets": "eRsgoVQimJs",
+"how to make a song in 30 seconds boywithuke": "QmzvMMpQf-I",
+"uicideboy drugshoesmoneyetc lyric video": "LXN7eq9f9_w",
+"ski mask the slump god catch me outside 2": "-YyOcJUI82Q",
+"ski mask the slump god nuketown ft juice wrld": "kF7_yxSK9Uc",
+"ski mask the slump god foot fungus": "7tOqUtSTF2w",
+"ski mask the slump god shibuya": "KbxLSjvHvAo",
+"ski mask the slump god faucet failure": "DL8tIU_CfOE",
+"ski mask the slump god fire hazard": "Q-Rd-Z-gj34",
+"ski mask the slump god the matrix": "3C5MYzQs7Jg",
+"ski mask the slump god so high": "x_UhvKWG7zQ",
+"ski mask the slump god carbonated water explicit": "rcrmTLJ_XWc",
+"ski mask the slump god unbothered": "2f_WdJeBEDg",
+"ski mask the slump god dr suess": "wDQm0t_Xjfo",
+"bass santana xxxtentacion ski mask the slump god make eem run": "Hlu8eaSKQbo",
+"ski mask the slump god wake up feat juice wrld": "5YPz4UzJUp8",
+"ski mask the slump god reborn to rebel": "LXAvbmNHWdQ",
+"ski mask the slump god adults swim": "ajtRtR4X-S0",
+"ski mask the slump god la la": "et2kTT9DTh4",
+"ski mask the slump god catch me outside official music video": "JpIlnaAmiCg",
+"ski mask the slump god earwax official visualizer": "J7WUlP6X2YQ",
+"ski mask the slump god earwax": "3PDp5sPYSzk",
+"ski mask the slump god ooga booga": "IWnAm2wJS-E",
+"ski mask the slump god cat piss ft lil yachty": "4VljYPS0d6g",
+"ski mask the slump god merlins staff": "6c7KXHz4GeE",
+"trippie redd xxxtentacion ghost busters ft quavo ski mask the slump god": "zbqn7N5hPgI",
+"xxxtentacion off the wall feat ski mask the slump god": "prGcQcvKHjA",
+"trippie redd toilet water feat ski mask the slump god": "bzFX1LagHhg",
+"ski mask the slump god u and i": "sVSLjD4ty5A",
+"off the wall": "wpkRjCBLa6U",
+"xxxtentacion ski mask the slump god freddy vs jason prod willie g official lyrics": "5ZCGUeBjddo",
+"xxxtentacion what in xxxtarnation feat ski mask the slump god": "7DjmTTshzMc",
+"smokepurpp ski mask official music video": "-sp_VuUUfDY",
+"life is short": "CvVAvuhqJ1o",
+"take a step back": "PbiWPUxGygs",
+"freddy vs jason": "41mZHTAwtzs",
+"xxxtentacion ski mask freddy vs jason instrumental prod willie g": "zQqFeR4BE3k",
+"eer ft ski mask the slump god danny towers lil yachty": "KpkHydjPgZg",
+"dj scheme ski mask the slump god eer lyric video feat danny towers lil yachty": "orMcH7yi3vc",
+"ski mask the slump god nuketown ft juice wrld official music video": "LjkDor2LenI",
+"ski mask the slump god burn the hoods official music video": "9AGAeGsBCvc",
+"smokepurpp ski mask official music video shot by _colebennett_": "3jCtsxrXJPg",
+"ski mask the slump god catch me outside 2 official music video": "7lQBp-pqiUs",
+"future ski": "Kad2gkMFnHE",
+"ski mask the slump god get geeked": "5UBfGQhQPIU",
+"ski mask the slump god hulk": "GCz9dZE6uoU",
+"ski mask the slump godcatch me outside": "8o5GumBtzP8",
+"ski mask the slump god from yard feat skillibeng": "QC_NH5p_lC8",
+"ski mask the slump god he diddy": "H8N5pGUEwZw",
+"denzel curry hit the floor ft ski mask the slump god": "m_FjDkd2sQ4",
+"xxxtentacion rip roach feat ki mask the slump god": "aFOxVm3Z9x8",
+"ski mask the slump god part the sea": "iS7eT994E9g",
+"ski mask the slump god lost in time": "FiMLkBoa_rY",
+"ski mask the slump god catch me outside 2": "vMtQdl5jmzY",
+"ski mask the slump god alien sex official music video": "4A43WD8Yt8k",
+"ski mask the slump god doihavethesause official music video": "_THBex8DItY",
+"how xxxtentacion ski recorded their first songs": "rXI2cwHwxgs",
+"xxxtentacion fuxk feat ski mask the slump god": "Wkbx8qYjU8Q",
+"ski mask the slump god him jung un": "ki_tqVbsZU4",
+"ski mask the slump god frozen one": "EONMguszVek",
+"ski mask the slump god ya": "YqaaRWgw6tU",
+"ski mask the slump god gone interlude": "wGd7NKsAmu4",
+"dreamville costa rica ft bas jid and more": "Zn8ohtUY44g",
+"ski mask the slump god life is short audio": "UjeeU8miw1o",
+"ski mask the slump god admit it": "dxK3ZO4Qd0w",
+"ski mask the slump god mental magneto": "MTzWt1m6HiU",
+"xxxtentacion ft ski mask the slump god freddy vs jason": "uXovwbxhuxU",
+"ski mask the slump god let it breathe": "VPsVrWGOwnA",
+"xxxtentacion performing rip roach with ski mask the slump god at rolling loud may 6th 2018": "xAg26rIci60",
+"ski mask the slump godcatch me outside": "opPFp0v4YgI",
+"ski mask the slump god tuk tuk": "bg9KJbkI9Oo",
+"ski mask the slump god full moon": "0JFlh06NGaE",
+"ski mask the slump god by myself": "MQbwYJgsHA4",
+"ski mask the slump god reflects on xxxtentacion": "QYAT6JN8vvk",
+"ski mask the slump god dragontooth": "lGVSvsXwCWE",
+"nationwide": "AzqxQuOB6bY",
+"ski mask way": "g5tTHbqV74Y",
+"keith ape x ski mask the slump god achoo": "iRcFzfkYVEU",
+"ski masks honest opinion on xxxtentacion and juice wrlds the way xxxtentacion": "IRIfvMC6vqU",
+"ski mask the slump god far gone ft lil baby": "_Oo-HjS3kD0",
+"ski mask holds on to their handshake because letting go hurts more xxxtentacion llj skimask": "kypoKm02C98",
+"ski mask the slump god go feat corbin": "f11yDAuu43k",
+"the pain of losing everyone ski mask left alone xxxtentacion juicewrld lilpeep sad rip": "W7iYaK1-ICs",
+"ski mask the slump god shibuya official visualizer": "bCk72-ccQvU",
+"ski mask the slump god wdym": "yd92urZTbOs",
+"xxxtentacion yung bratz": "1TFZl8oz6Es",
+"psycho": "flZnNG_NUcE",
+"lil gnar new bugatti ft ski mask the slump god chief keef dj scheme": "xC3dnTLTRe8",
+"ski mask the slump god killstreak": "_Yy_cUFYFlk",
+"ski mask the slump god nuketown ft juice wrld": "zUqXBYhZ-ds",
+"quicksand ski mask the slump god snippet": "HzAkankk4Ko",
+"jid and ski mask the slump gods 2018 xxl freshman cypher": "Ww_YlWm_SHM",
+"danielle bregoli is bhad bhabie these heaux": "pPuuhOiIOMM",
+"bhad bhabie feat lil yachty gucci flip flops": "P3BMmJtbZUs",
+"bhad bhabie hi bich": "m2PZoUPkxMU",
+"danielle bregoli is bhad bhabie these heaux official music video": "-ioilEr3Apw",
+"bhad bhabie feat lil yachty gucci flip flops official music video danielle bregoli": "tsp7IOr7Q9A",
+"bhad bhabie lotta dem": "z3EGH-D8pVU",
+"lil candypaint bhad bhabie 22 remix": "N8SNV9TfwhE",
+"lil candy paint 22 ft bhad bhabie blowing up his phone i know im tripping for no reason": "3lqxLADKD_U",
+"bhad bhabie ykniece yams": "Uwx7a2Ju73o",
+"bhad bhabie ms whitman official music video": "yo7_px4vXYQ",
+"bhad bhabie famous danielle bregoli": "ifRsHv8kd-g",
+"whachu know": "D0rsq5WOVLY",
+"danielle bregoli is bhad bhabie hi bich whachu know official music video": "1NyMSWqIJDQ",
+"bhad bhabie og crashout official music video": "1TXbcOju0Zc",
+"bhad bhabie feat tory lanez babyface savage official music video danielle bregoli": "s8hW4bzMx8E",
+"bhad bhabie no more love danielle bregoli": "UQlk85QZEqM",
+"bhad bhabie hi bich remix feat rich the kid asian doll madeintyo wshh exclusive": "MEYmQlWBeAE",
+"these heaux bhad bhabie": "1oYB4Koj3-M",
+"bhad bhabie ft yk niece yams official music video": "tyD_QnTlICc",
+"bhad bhabie mama dont worry still aint dirty official music video danielle bregoli": "Ku-WC1EaPXI",
+"over cooked": "fK-eXPMOR1E",
+"karlae boondocks feat bhad bhabie": "BC8-Hkh8aN0",
+"bhad bhabie shhh danielle bregoli": "fWeSwEEKLb4",
+"bhad bhabie feat kodak black bestie official music video danielle bregoli": "bfmLYKxJ0UA",
+"bhad bhabie ft kodak black bestie": "cIoz7Ao066Q",
+"bhad bhabie i got it official music video danielle bregoli": "WlZu4RmD_oU",
+"bhad bhabie geekd feat lil baby official music video danielle bregoli": "66h5dGoQ1IU",
+"bhad bhabie feat lil yachty gucci flip flops lyrics": "v3b5Rugw_v0",
+"bhad bhabie feat yg juice official music video danielle bregoli": "EmNwaoaTkiY",
+"bhad bhabie ms whitman": "QMtC80ToN3c",
+"bhad bhabie trust me feat ty dolla ign official music video danielle bregoli": "459G-8RtOa4",
+"bhad bhabie ms whitman": "m4X9UkjTLOM",
+"bhad bhabie bout that danielle bregoli": "e_7UxNmyLyM",
+"bhad bhabie over cooked": "pTNLPnSu2NM",
+"bhad bhabie feat asian doll affiliated danielle bregoli": "wWdXzcm2Ccc",
+"honest": "WlQKhBq_Fm4",
+"ms whitman": "ta3VIaPMWYk",
+"bhad bhabie thats what i said": "R4t7L-gDFDs",
+"bhad bhabie mommy mode": "lcgL04fWn7U",
+"bhad bhabie x lil gotit": "TryruUHfcFU",
+"bhad bhabie feat yg juice danielle bregoli": "PnAChIDUu6M",
+"bhad bhabie ybn nahmir spaz": "_f8Vn0ZklgM",
+"bhad bhabie 15 intro danielle bregoli": "4JPZL1g5vac",
+"bhad bhabie intro 15 mixtape drops sept 18 danielle bregoli": "yN5Gmwrly5o",
+"bhad bhabie spaz": "fW0I0jb-jH4",
+"bhad bhabie yung and bhad feat city girls danielle bregoli": "uzWbo-F09RE",
+"bhad bhabie og crashout": "SLJ5zb78Kmo",
+"bhad bhabie feat lil baby geekd danielle bregoli": "efbneH0pZ0k",
+"bhad bhabie explains why she wont stop dissing alabama barker": "1CbUZba--OY",
+"there was always original first go away copies bhadbhabie": "rcwwFJMKOgE",
+"top 10 bhad bhabie moments catch me outside more shorts": "4KruR6BT-yw",
+"bestie feat megan thee stallion": "Lw2zmbSbuFI",
+"bhad bhabie gucci flip flops clean feat lil yachty": "ctsh748SkDo",
+"bhad bhabie og crashout": "yRK-Jj0U9rQ",
+"bhad bhabie miss understood": "-CIPIbQtZTY",
+"bhadbhabie or alabamabarker whitman trend beef audio trending trend shirts cars": "kzPeMRVaSdc",
+"bhad bhabie hirak count it danielle bregoli": "YlMwHITt6H0",
+"babyface savage bhad bhabie feat tony lanez audios for edits": "3AYgNAp_Ecs",
+"lil candy paint bhad bhabie 22 remix": "dZFvi-Q0daA",
+"bhad bhabie mama dont worry still aint dirty danielle bregoli": "ySB5MuPuNhI",
+"bhad bhabie geekd up feat lil baby 8d audio": "bC3PSuNIOjU",
+"bhad bhabie i got it": "Sa2NXh3_lGE",
+"bhad bhabie get active remix extended": "l4AeGyE0qHY",
+"rap lyrics music audio remix bhadbhabie": "FrRksWoKkI0",
+"benjamin elgar bhad bhabie hoe official music video": "E632eAd2F5Q",
+"bhad bhabie bestie feat megan thee stallion danielle bregoli": "xjr8GwzcZoo",
+"22 remix 2": "drFMPrDo208",
+"bhad bhabie ms whitman bass boosted": "-KpgYOMHaUc",
+"bhad bhabie thats what i said official music video": "ZW4YGJRUgc4",
+"bhad bhabie miss understood clip": "TefQGpx_sLk",
+"bhad bhabie ft kodak black bestie": "5fpV6V-eCaw",
+"lil durk dog walk feat bhad bhabie": "obsxFxKL00I",
+"bhad bhabie miss understood official music video danielle bregoli": "moNFBVqMlpw",
+"bhad bhabie yams ft ykniece clean": "bNHxmVZHP8E",
+"bhad bhabie do it like me official music video": "zwpoH1xJfZY",
+"bhad bhabie gucci gang": "UqlMYBbwGb8",
+"bhad bhabie lil durk thats enough said": "sRtowRxGLS0",
+"peysoh bhad bhabie fwm": "9XE9b2J-iQI",
+"bhad bhabie do it like me": "jYPR4bQScxU",
+"bhad bhabie honest": "TlUG8K2Izc8",
+"bhad bhabie og crashout": "mslm9UY5OGo",
+"22 remix speed up": "bgIcTIThqCM",
+"bhad bhabie disses kylie jenner": "BMnTPNJzh00",
+"lil candy paint 22 feat bhad bhabie remix": "GJ-eqegiOEs",
+"you wish bhad bhabie unreleased audio": "05EqH0fUgCo",
+"bhad bhabie shut up feat trippie redd": "hzUcem1XWho",
+"bhad bhabie lotta dem": "5OZWt_VBF34",
+"bhad bhabie geekd 8d audio feat lil baby": "F8OJ0faYdDE",
+"bhadbhabie rapper audio music": "ubwk8L2kQCI",
+"do it like me bhad bhabie longer versionbass boost remix bhadbhabie doitlikeme remix": "4QzxybzWVs4",
+"bhad bhabie lil durk thats enough said unreleased lyrics video": "lC8rxP2c0aM",
+"bhad bhabie x lil durk dogwalk doggywalk": "W-tSIKJDtBg",
+"first video ms whitmanbhad bhabie fypviral cleansound": "Vju7jheXc9E",
+"black": "wCtEj-7F-7s",
+"the law of recognition kyslingo": "dsYFCGWfeT8",
+"the law of recognition spedup": "vi5pA24-oDA",
+"let me out": "RryKh9pwwb8",
+"what do i know": "L0BxkVwUDoU",
+"curser feat u4l scoovy u4l judo": "HdNOHtNuAxc",
+"glory": "OaEf9VKRbHc",
+"the love i started ii": "m3pCsiwE0wY",
+"when nobody had me": "g8Z15u2n8Sg",
+"kys lingo limbo prod nolanberollin directed by will samuels": "PlQ8RoNk2Ag",
+"lingo i know my love is crack prod kyslingosomebody freestyle prod will samuels dir kiiru": "l95CcT0uhdo",
+"im alive": "2p_lyFXD4F8",
+"somebody freestyle": "GNvmQGsCKdQ",
+"terrorist": "1GQkS8HlpE4",
+"protect mine": "NCxXnQ58ixY",
+"bald eagle": "Dp80rY2vF2A",
+"kyslingo the law of recognition": "yEyyKST2MXA",
+"the law of recognition": "9aOELPLkcnY",
+"im alive ii": "65yyOmqiqnI",
+"kyslingo burnheart prod flexafendiofficial music video directed by kevin polo": "qPiS90ofYM8",
+"lava girl": "0BFP9kxJse8",
+"pain": "Httspvc8cQc",
+"ill whip ya head boy feat osyris israel": "HAv5cWvaarE",
+"kyslingo glory drama queen freestyle official music videodirected by kevin polo": "oJkgBoMIXtc",
+"blue 3": "j2dcA0cP6L8",
+"love losing hype": "6Zis-rogtUk",
+"lies 2": "-3jumdgWZNA",
+"kyslingo limbo": "3C94XsYv0zA",
+"kyslingo limbo produced by nolanberollin": "pKjhENPVT6k",
+"do me wrong": "tbo-_P4oIXA",
+"grey": "dGLOVZrWBl0",
+"never worry feat kyslingo": "1b3M1ckmROI",
+"kyslingoi know my love is crackslowreverb": "lgBw4cKsZRE",
+"do you know": "yZFsqLuxNqQ",
+"kyslingo sad nights prod sadbalmain": "59vD8eFZrlQ",
+"double cut": "4CuQq9rt-tw",
+"6 feet below": "7zWDrSptkZk",
+"kyslingo reaper prod stoopidxool": "vAuZBda-q8I",
+"kyslingo get 2 it prod robrossdaboss kyslingoofficial music videodirected by kevin polo": "cKD1mOU5A4o",
+"kyslingo the law of recognition tiktok song free quan": "8dSm39HyEE0",
+"kyslingo sad nights": "m5Z0O_eF8Jg",
+"kyslingo earth is not a heaven cloudrap": "2b-2eFcJbKI",
+"kyslingo stop it": "p44p_TDbb1M",
+"limbo by kyslingo sorry about the delaymusic freedom happy free limbo": "cnA1TNbExn4",
+"law of recognitionlyricvideo lyrics": "1Rtf3aP7_oU",
+"kyslingo energy best sound quality": "SbIm3GSLwoQ",
+"kyslingo thelawofrecognition": "buPHf22NFZk",
+"kyslingo earth is not a heaven slowed reverb": "DDSjTDlJ0ek",
+"kys lingo i know this helps prod kyslingo shotedit by sleemlu": "F6N6uVb1SbE",
+"the law of recognition kyslingo": "pwotI6fNddg",
+"demon slayer kyslingo burnheart amv edit": "zbD2UgJ2YlA",
+"kyslingo lingo the law of recognition prod sadbalmain": "7mP5yy2U1ks",
+"glorykyslingo": "grTDQT_KpBo",
+"kyslingo the law of recognition slowed reverb": "4v3DkneVYg4",
+"kyslingo i know my love is crack prod kyslingo": "se2L4YIflRI",
+"": "3uHxZ3agptw",
+"kyslingo lingo not a sneaker head prod kyslingo": "9YuKYp-ugkM",
+"kyslingo dip remix shot by kevin polo": "hKFQpK6WxuQ",
+"which version of the viral song the law of recognition are you messing with more": "2izKaKKsm38",
+"the law of recognition ishowspeed velocity edit": "3FsJWA5V7Ns",
+"ja morant edit the law of recognition sped up": "jp4gsO9838k",
+"kyslingo glory prod 6silky bbasedtj": "ERFR28sAD2o",
+"how to sound like osamason troops for free on bandlab freepresets freepreset osamason bandlab": "CkJ7WZGvXh4",
+"kyslingo x lil xelly rova": "cY2iTZ1wsBA",
+"earth is not a heaven": "v6QVNQl8bO4",
+"kyslingo glory edit": "IggFoLYvE3c",
+"why would you lie kyslingo stafa shot by bobby lee palmer": "Jq58rN2WDHA",
+"kyslingo glory slowed": "hhKoz0qRvzA",
+"kyslingo i know my love is crack legendado": "JPXlXRiS4RM",
+"": "xP_99nhChFE",
+"company ii": "XEaFuE1hvDQ",
+"the law of recognitionedit shorts": "75-v7_s-gKs",
+"the law of recognition by kyslingo": "K55KPfaRB6E",
+"kyslingo im up bitch prod dj young kash": "wcqyMbl05TY",
+"kyslingo law of recognition sped up bb": "s_LxglwIz2w",
+"kyslingo type beat prod otz": "mDVwIBkchto",
+"kyslingo the law of recognition 852hz harmony with universe self": "Bpm8YlSFAWU",
+"kyslingo limbo": "80bffnvvkos",
+"the haunting": "DzY2132buC4",
+"tokyo ghoul the law of recognition": "WqNAUYfsIMs",
+"kyslingo already know vilencia": "vs7XngIMHVY",
+"kyslingo the law of recognition sped up": "X_ODlNT0D6E",
+"kyslingo the law of recognition sped up": "l_sEW_e8_O4",
+"kyslingo rockstar sped up": "qKRGT_OuYYs",
+"7 minutes of kyslingo songs that i like but there replaced with liminal spaces": "wn0770hCttk",
+"kyslingo the law of recognition": "_o3jDx3jR3o",
+"kyslingo glory": "vbB6kX9Qkj4",
+"could you rap over this hard trap x freestyle type beat freestyle rap training 335": "k4MmOsdT-Do",
+"kyslingo demons cry too": "OSOR3jYmqVo",
+"kyslingo dip speed up": "zpuhSno52E0",
+"the law of recognition": "2TN_vLEbGic",
+"demonslayer flow edit kyslingo": "m-CiABl87mw",
+"might feel too sick": "b-alNl-WuuU",
+"saitama the law of recognition kyslingo editamv": "QbN6WPuXhHg",
+"kurapika edit the law of recognition": "fnvxmSCuSnE",
+"kyslingo limbo reflexion": "MCWO03h6fpU",
+"bass booted kyslingo the law of recognitionsped up": "d-NRiIZ2fkY",
+"the law of recognition kyslingo slowed reverb": "I-np4e2TACg",
+"lie to myself": "82fFTyLlIWg",
+"mikey recognitioneditamv": "OZeaJvdZ8jQ",
+"that feeling by kyslingo firsttimehearing reaction": "nGMEOazVv5w",
+"the law of recognitionjujutsu kaisen amvedit 1080p": "JXPbwlLkaEg",
+"kyslingo growing pains save you": "tkzxZgJQh3Q",
+"kyslingo burnheart killua amv edit": "T8pgpLHOfkc",
+"kyslingo lingo for what its worth produced by evilgiane harrison shotedit by willsam": "nWoPIk5OaSo",
+"that feeling": "z4R_7YidyUA",
+"kys lingo limbo slowed sped up": "DrmIf_dHv_o",
+"the law of recognition": "cBVytAqNtJ4",
+"the law of recognitionkyslingo": "g32XWhuAoEA",
+"kyslingo lingo the law of recognition": "VebIrqgsMbY",
+"roadblock feat evilgiane eli propper": "7ymEm20e9Rg",
+"and if this takes forever": "3KIO96rVWgM",
+"kyslingo limbo slowed reverb": "6ZokibYOdG8",
+"anime shorts the law of recognition amv": "-F-Y7wNZvOI",
+"youre so cool cupid feat kyslingo": "93RXQOA99Fg",
+"the law of recognition": "oNGIMXgO_Lc",
+"law of recognitionkyslingo not clean": "uk2yrz29_Mc",
+"kyslingo fake": "zgCryVNWPAA",
+"jenna ortega": "txvCX87EUm4",
+"thank god for every breath diggadtv edits sorts diggad": "4HK3UL--Hj4",
+"chris travis diamonds pt1": "Isfkiie3YRM",
+"chris travis h20 official music video": "9_rB39KfZM4",
+"her lullaby": "c1h0n80DHRo",
+"chris travis crunch time": "fmq39rSBi6g",
+"chris travis diamonds prod by eric dingus": "Lv9iwvUiFpk",
+"purple thoughts": "da-feNlIs8g",
+"fijifalls": "F6yV7qRKTxE",
+"chris travis by myself": "VjBWjj1yoZ4",
+"nobody knows": "A4ZqknjqAIU",
+"chris travis stayin true": "5vTuF9u4mi4",
+"bones xavier wulf chris travis wedontbelieveyou": "D8AGKWyyrJ8",
+"hold me up": "g5d5Rf_P2PI",
+"xavier wulf chaos castle feat eddy baker chris travis bones": "PHLMICMNzPM",
+"swerve slow": "4K8q4VHtPBk",
+"chris travis when you feeling numb": "XrTG58whLzc",
+"chris travis kill switch": "mBYKBFjynHM",
+"chris travis the reason": "ZjC5W6oolAo",
+"chris travis do my own stunts": "8DHXe38HcoM",
+"80 dime bagz boomin like alicia keys feat black kray ethelwulf": "Yvdu4Mf98EY",
+"chris travis filthy rich": "3vs41NqBhTY",
+"chris travis off the lot": "1z5UXAOjcMU",
+"chris travis another day": "F_wROVPcv9Q",
+"how it is": "DS0bZPJowFQ",
+"chris travis diamonds": "veYPg5up-Ek",
+"ill whip ya head boy feat osyris israel": "HAv5cWvaarE",
+"kyslingo glory drama queen freestyle official music videodirected by kevin polo": "oJkgBoMIXtc",
+"chris travis wavy world music video": "-Zg8Sy43_sM",
+"chris travis memphis to la official music video": "vRXtD7a6PN0",
+"over and over": "mgwvI2cwiww",
+"actavis": "Uz4r9bf03Yg",
+"smoke": "BN_66dEBJxc",
+"275 be the team feat chris travis": "Lt8Qpzri2mw",
+"castleflutes feat chris travis": "Qjv2eE7PIOs",
+"hate and love": "EX6O36HPyKk",
+"chris travis bring it back prod by tay on the track": "x2w3fHf8HGM",
+"you know you know": "v2ePn2GiQO4",
+"morning dew": "QsVX3OjGp58",
+"drugshoesmoneyetc": "ElKAextmUoo",
+"psychedelic funk": "XwhPDCEbvOw",
+"miss me when im gone": "QRTNLDRHOTI",
+"space men feat chris travis": "mAdEbJYqje8",
+"aap rocky i smoked away my brain im god x demons mashup ft imogen heap clams casino": "AT9JoIv2kss",
+"chris travis the reefer official music video": "yrKq8L2PVRA",
+"chris travis no signal official music video": "djeAdwiGWaQ",
+"let down": "zCZvA97fahU",
+"chris travis bruno": "dBB58pKM004",
+"chris travis too much": "siQmXNw3Hno",
+"chris travis manic": "eXF82S49F3E",
+"chris travis playa": "DsFVACikSSo",
+"chris travis eternal pits": "qsASWBBjeVY",
+"chris travis top of the hill": "eqBeYCm6USM",
+"chris travis groovin": "iXDOQXXDXZg",
+"chris travis coming through official music video": "eRjOWEWLKc8",
+"chris travis 432hz mix": "upbqT-chJgM",
+"chris travis perchin official music video": "b-4LHVYP-kY",
+"chris travis g80": "62tBNH7mrfg",
+"chris travis ph 15": "wOfNjjyF9DY",
+"chief 1997": "nO0GYHHZmMs",
+"chris travis trust no one": "BvtcUe-FlFo",
+"chris travis fwts": "h2Fec_hukyI",
+"chris travis reflections intro official music video": "MTYrLMykok0",
+"christravis her lullaby": "zpXyx8kcDh8",
+"xavier wulf x chris travis shinjitsu": "z6zM699bg20",
+"chris travis your makeup": "HuTtgF8Dm3s",
+"chris travis green red official music video": "ESko5SPNSS4",
+"chris travis tonight": "86yxrQJkIx4",
+"chris travis kim possible": "BaR6bi-xuBk",
+"chris travis cant play with me": "TPma1ev9Cr8",
+"chris travis its on you official music video": "7cwjrVpTWrI",
+"": "6z-FZXmPV3A",
+"nothing but you": "kY-XI5f9wZA",
+"chris travis oakland": "fZl_AyPm0zI",
+"chris travis maybach truck": "yn43y_V07a4",
+"chris travis gold": "xTaxfkjoS9s",
+"chris travis crazy official music video": "nJXk5b9PeVk",
+"chris travis lord infamous flow": "KVPyE1QaX2k",
+"chris travis drank talk": "XC1yhvWx4GM",
+"chris travis antidepressants": "dqp_rkOuZSI",
+"chris travis antidepressants music video": "smdlQLrUwSs",
+"chris travis green red": "V4K5Dbf4I8k",
+"where my money": "jWXLjeIhM5A",
+"chris travis chit chat": "fNBJkXuYhfg",
+"chris travis why so serious official music video": "1IG0npiljFg",
+"juice wrld stay high": "Z9yaG27quz0",
+"juice wrld lean wit me": "e6YYRLfUZ5M",
+"juice wrld cuffed": "74FlSfgOueo",
+"juice wrld hear me calling": "SlSNHEfnqn8",
+"juice wrld moonlight": "3JBKp0YbSEc",
+"juice wrld legends": "dIzgiclddlM",
+"juice wrld robbery": "6pFKpy9HmRw",
+"juice wrld candles": "u0BSO8jNs04",
+"juice wrld empty": "9LSyWM2CL-U",
+"juice wrld blood on my jeans": "3Klj_pjjqUM",
+"juice wrld wishing well": "Q3zpwgQK8Yg",
+"juice wrld already dead": "EAfckg0ORS4",
+"juice wrld from my window": "K6UMLJGElGc",
+"juice wrld flaws and sins": "RG9xHEF1vyk",
+"juice wrld lucid dreams forget me": "onbC6N-QGPc",
+"juice wrld let me know i wonder why freestyle": "swDam6Hrsm8",
+"juice wrld ft marshmello come go": "5Di20x6vVVU",
+"juice wrld ft young thug bad boy": "sP9t8WGDwfg",
+"juice wrld conversations": "1VSZtyenNlA",
+"juice wrld misfit": "1HgLQP6xkIY",
+"juice wrld make believe": "nHyE_nm4d3o",
+"juice wrld party by myself": "35F29uYoqo4",
+"juice wrld 67 unreleased": "cmTZjw4HFYo",
+"juice wrld used to": "Pxhds98iubg",
+"juice wrld cheese and dope freestyle": "0_7XPkBAxpo",
+"juice wrld remind me of the summer music video": "D-mtpCBOwm4",
+"juice wrld kkk": "n8nbFKB_btI",
+"juice wrld go hard": "KRiab3PNgC4",
+"juice wrld scars unreleased": "GZyj2wU0NPU",
+"juice wrld burn official music video": "HA1srD2DwaI",
+"juice wrld autograph on my line": "rULyu_wFWGU",
+"38 special go go juice wrld": "ESMt9kofND4",
+"benny blanco juice wrld graduation official music video": "M3N06KyK3s0",
+"juice wrld the way feat xxxtentacion official music video": "tHDMJB2xZdc",
+"juice wrld cuffed official music video": "_MUSrN3ACV4",
+"juice wrld autograph on my line music video": "JRAdnd3ORXM",
+"juice wrld bustin savages music video": "tlsuUoWD9Mg",
+"juice wrld ap tik tok full song 2019 my year": "qRr0ZEvlEGo",
+"juice wrld in my head": "DqZhP-Vuxgs",
+"set me free": "RlF5x-NgD2M",
+"juice wrld sometimes og": "v_q6bJHgJe0",
+"juice wrld party by myself official music video": "Ys3zAdSI1eI",
+"its 4am": "NNqgmlV4dWk",
+"lil peep california world feat craig xen": "piuovGiAFvo",
+"juice wrld bad boy ft young thug official music video": "ghzdwjWrWcc",
+"my flaws burn through my skin like demonic flames from hell": "S0KAAsanVms",
+"k like a russian": "ua47Omdl76s",
+"xxxtentacion ayala outro added background vocals extended": "gFstUq3QQyE",
+"juice wrld 734 og": "KrgsHVxqElc",
+"juice wrld off the rip gamble": "05xCoE_0l4A",
+"juice wrld im still": "Hivf9Z_E3qU",
+"lil peep ghost girl": "pcFK4HzAlsU",
+"lil peep ghost boy": "NiWFVHbB_Eo",
+"lil peep right here feat horse head": "m-44PIocS_4",
+"lil peep nuts feat rainy bear": "osPq9Yb8xm8",
+"ken carson fighting my demons official music video": "YKkMR2l05Rs",
+"fck love xxxtentacionxxx ft trippie redd": "wXuFG8uQpZ8",
+"forever ever feat young thug reese laflare": "XYb1mdGu5aQ",
+"misery in waking hours": "Y45kvrHBx2s",
+"king von armed dangerous": "tBKYI3-3lMg",
+"xxxtentacion sad": "pgN-vvVVxMA",
+"lil peep walk away as the door slams feat lil tracy": "ovvZ2f6ipXw",
+"juice wrld all girls are the same official music video": "h3EJICKwITw",
+"travis scott playboi carti future where was you": "um-uRGkT8GU",
+"lil peep lil tracy castles": "As1bpICMhzs",
+"aap rocky i smoked away my brain im god x demons mashup ft imogen heap clams casino": "AT9JoIv2kss",
+"lil peep star shopping": "m8QQR-wQA0I",
+"ken carson ss": "TMzs6GvsZXU",
+"juice wrld condone it": "Jwm18NSC2L0",
+"juice wrld fighting demons": "rJZynxvJnlI",
+"g herbo ptsd ft juice wrld chance the rapper lil uzi vert": "k3-fAXbCa44",
+"godzilla feat juice wrld": "9XvXF1LrWgA",
+"juice wrld black white": "aQDhBNHBQUs",
+"juice wrld fast": "BO18LZkhiEc",
+"ynw melly feat juice wrld suicidal remix": "j18d-hLdTD8",
+"juice wrld not enough": "BU3RzEbSiW4",
+"juice wrld sometimes official visualizer": "ym9MpAz5PNI",
+"juice wrld justin bieber wandered to la": "ioxhcuNSxZk",
+"juice wrld man of the year": "_YwppMLPoPg",
+"juice wrld bad energy": "EfP3Ya5-JoU",
+"juice wrld ill be fine": "0_6RDuiUyFk",
+"lucid dreams": "VTG-ForqDk4",
+"halsey without me ft juice wrld": "sPPsOmQh76A",
+"polo g flex ft juice wrld": "7aS7KStPgNA",
+"juice wrld rental unreleased og version lyrics": "Tq5YHgxwGGk",
+"juice wrld scared of love with instrumental by ghost loft": "uSVW0aJdn9o",
+"juice wrld the party never ends": "FebG5YUV1d8",
+"juice wrld burn": "UQ8Jc7b42Fg",
+"juice wrld rich and blind": "DRN2jnlXewE",
+"juice wrld burn official lyric video": "L5ge0v0FTiE",
+"lil tecca feat juice wrld ransom": "-thh5_bpGGY",
+"juice wrld no good": "hvzI_z65Xfs",
+"ski mask the slump god nuketown ft juice wrld": "kF7_yxSK9Uc",
+"juice wrld glod up": "jCtQ0FYVVs8",
+"juice wrld barbarian": "GzmbBLfIKcw",
+"dj khaled juice wrld did ft juice wrld": "LU3y5QpwXJc",
+"juice wrld wishing well official music video": "C5i-UnuUKUI",
+"marshmello juice wrld bye bye official lyric video": "ZnQMqj-Sbec",
+"juice wrld adore you": "4Kl_wNRoAUc",
+"juice wrld cavalier": "BGiuQ77BnMY",
+"juice wrld wasted feat lil uzi vert": "pqiO8wV4-wc",
+"juice wrld youdontloveme": "hSA5RVSMyaA",
+"juice wrld end of the road": "jt7wa2j1Nzc",
+"juice wrld empty out your pockets official fortnite video": "hgYhws0AHcg",
+"juice wrld desire": "Krw9ZLN0aqE",
+"juice wrld ring ring feat clever": "Rp0asR_2Ono",
+"juice wrld feeling": "9gHwgVRRCWg",
+"juice wrld the weeknd smile": "2avPJ9TZNmU",
     "kendrick lamar squabble up": "NYH6Oa4PXlY",
+    "kendrick lamar squabble up": "NYH6Oa4PXlY",
+"kendrick lamar luther": "HfWLgELllZs",
+"kendrick lamar count me out": "6nTcdw7bVdc",
+"kendrick lamar tv off": "U8F5G5wR1mk",
+"kendrick lamar peekaboo": "cbHkzwa0QmM",
+"euphoria": "NPqDIwWMtxg",
+"kendrick lamar n95": "XEV4x7xEprw",
+"future metro boomin kendrick lamar like that": "N9bKBAA22Go",
+"alright": "JocAXINz-YE",
+"kendrick lamar rich spirit": "hl3-ZPg-JAA",
+"poetic justice": "XWQJdnmpnhc",
+"kendrick lamar wacced out murals": "YwUQ_5iV9pY",
+"not like us": "T6eK-2OQtew",
+"dna kendrick lamar": "uX6uBHPGfSs",
+"kendrick lamar rich spirit": "toBTPGfurLc",
+"kendrick lamar adhd": "QjlFqgRbICY",
+"kendrick lamar adhd": "VOL0-EE3ieY",
+"the recipe ft dr dre bonus track kendrick lamar good kid maad city deluxe": "4Poddz658pM",
+"kendrick lamar cartoons cereal feat gunplay": "xy_UAmjMQXo",
+"kendrick lamar poetic justice explicit ft drake": "yyr2gEouEMM",
+"kendrick lamar poetic justice feat drake": "oYx4LKK9LhU",
+"the weeknd sidewalks ft kendrick lamar": "sK-T-cmznY8",
+"kendrick lamar i": "jltN3fLFmTQ",
+"kendrick lamar heart pt 6": "m-PO1_fzxVM",
+"dj mixbestmixkendrick lamar best mix greatest hits 2023 kendricklamar djmix": "xfZ0QeibtKM",
+"kendrick lamar bitch dont kill my vibe": "LiaVWUI44Og",
+"kendrick lamar not like us": "H58vbez_m4E",
+"kendrick lamar count me out x zeldas lullaby kendrick did you hear that kendrick tiktok version": "bekr08CBWCE",
+"kendrick lamar untitled 05 lovibe remix audio only": "BfU5hszDP2o",
+"kendrick lamar god is gangsta": "4wZytWFm7x0",
+"we cry together a short film": "wUGyZM9rcnY",
+"kendrick lamar prayer unreleased trke eviri": "8I0zfDPh6MA",
+"bodies kendrick lamar mastered extended gnx trailer": "P89jcfTmWGM",
+"schoolboy q collard greensft kendrick lamar": "OGp4RvqlSPM",
+"lil peep downtown": "39Abw0bVM2M",
+"swimming pools kendrick lamar edit audio": "uTofxeMRwtQ",
+"kendrick lamar watch the party die best quality on yt": "efsqlBF3_nE",
+"kendrick lamar count me out": "5GhhVHpPR_M",
+"wesleys theory": "l9fN-8NjrvI",
+"kendrick lamar body for body full song": "Qfd9S6IKw6Q",
+"money trees": "HJNa9Ih3haA",
+"kendrick lamar untitled 05 lovibe remix": "VCI46yZptEU",
+"maad city": "AuikIJZpt_8",
+"playboi carti evil j0rdan official visualizer": "VcRc2DHHhoM",
+"forever ever feat young thug reese laflare": "XYb1mdGu5aQ",
+"playboi carti the weeknd rather lie": "fYD7YsSRHOY",
+"playboi carti hba": "QTLqujvTGrg",
+"aap rocky i smoked away my brain im god x demons mashup ft imogen heap clams casino": "AT9JoIv2kss",
+"daniel caesar superpowers": "rScwLoES2bM",
+"duckworth": "Dm-foWGDBF0",
+"kendrick lamar alright official music video": "Z-48u_uWMHY",
+"playboi carti toxic with skepta": "U6jeOBSGI6Q",
+"playboi carti olympian": "mj4yh7YrwfE",
+"ken carson ss": "TMzs6GvsZXU",
+"kendrick lamar die hard ft blxst amanda reifer": "Lx3MGrafykU",
+"all the stars": "ju4KQT0wL0I",
+"kendrick lamar hey now": "9PumlOWjXMM",
+"kendrick lamar sza all the stars": "JQbjS0_ZfJ0",
+"kendrick lamar money trees feat jay rock": "smqhSl0u_sI",
+"miguel how many drinks ft kendrick lamar": "CvBufVFuERM",
+"future mask off remix ft kendrick lamar": "nrjPzPc1JiY",
+"kendrick lamar the recipe lyric video ft dr dre": "YpugK0RpEaU",
+"kendrick lamar backseat freestyle explicit": "EZW7et3tPuQ",
+"kendrick lamar father time ft sampha": "toEW7_-pvOY",
+"sia the greatest ft kendrick lamar": "sG6aWhZnbfw",
+"loyalty ft rihanna kendrick lamar damn": "2-IF9HXUlk0",
+"baby keem kendrick lamar family ties": "v6HBZC9pZHQ",
+"kendrick lamar loyalty ft rihanna": "Dlh-dzB2U4Y",
+"kendrick lamar dodger blue": "c7y2ziOBA1s",
+"kendrick lamar adhd": "mKBRNn-D2Sk",
+"travis scott goosebumps ft kendrick lamar": "Dst9gZkq1a8",
+"kendrick lamar sza luther": "sNY_2TEmzho",
+"kendrick lamar mother i sober ft beth gibbons of portishead": "Vo89NfFYKKI",
+"kendrick lamar man at the garden": "wiALRpD0Ztg",
+"chris brown autumn leaves explicit ft kendrick lamar": "undkbBJLa-Y",
+"kendrick lamar rigamortis": "yh6QxtRpSH8",
+"love iab sounds edit kendrick lamar ft zacari": "GdSabJXr59A",
+"sza 30 for 30 feat kendrick lamar": "NEnephbahLA",
+"pray for me": "T0pYq_Saf7g",
+"lil wayne mona lisa ft kendrick lamar": "ybfgomoY8Xs",
+"kendrick lamar love ft zacari": "SyYUdbaddQU",
+"all the stars kendrick lamar feat sza clean version": "YxCUbt0wtFo",
+"schoolboy q collard greens explicit official music video ft kendrick lamar": "_L2vJEb6lVE",
+"humble": "ov4WobPqoSA",
 "kendrick lamar tv off": "U8F5G5wR1mk",
 "kendrick lamar luther": "HfWLgELllZs",
 "kendrick lamar count me out": "6nTcdw7bVdc",
