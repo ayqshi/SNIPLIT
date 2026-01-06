@@ -8,204 +8,6 @@ const CONFIG = {
     SCROLL_MEMORY: true
 };
 
-// --- COMPREHENSIVE AD SHIELD ---
-const AdShield = {
-    config: {
-        enabled: true, // Master switch
-        freezeThreshold: 4, // Seconds to consider "stuck"
-        maxRetries: 3 // Max session refreshes before giving up
-    },
-    
-    state: {
-        lastTime: 0,
-        isAdDetected: false,
-        retryCount: 0,
-        monitoringInterval: null,
-        adDetectedCount: 0
-    },
-
-    // --- 1. INITIALIZATION ---
-    init() {
-        if(!this.config.enabled) return;
-        
-        // Hook into YouTube Engine lifecycle to monitor for ads
-        const originalLoad = YouTubeEngine.load;
-        const originalPlay = YouTubeEngine.play;
-        const originalPause = YouTubeEngine.pause;
-        const originalStop = YouTubeEngine.stop;
-        
-        // Wrap YouTube methods
-        YouTubeEngine.load = (track) => {
-            this.state.isAdDetected = false;
-            this.state.retryCount = 0;
-            return originalLoad(track);
-        };
-
-        YouTubeEngine.play = () => {
-            this.state.isAdDetected = false;
-            this.state.retryCount = 0;
-            return originalPlay();
-        };
-
-        YouTubeEngine.pause = () => {
-            this.state.isAdDetected = false;
-            return originalPause();
-        };
-
-        YouTubeEngine.stop = () => {
-            this.state.isAdDetected = false;
-            return originalStop();
-        };
-
-        // --- THEORY 1: URL PARAMETER INJECTION (Anti-Overlay) ---
-        // This hijacks the loadVideoById to append anti-ad parameters automatically.
-        const originalLoadVideo = YouTubeEngine.player.loadVideoById;
-        if (YouTubeEngine.player) {
-            YouTubeEngine.player.loadVideoById = (videoId, startSeconds, suggestedQuality) => {
-                // Add Anti-Overlay Params
-                // iv_load_policy=3: Hide skip button, suggest quality, etc.
-                const antiAdParams = '?iv_load_policy=3&modestbranding=1&showinfo=0';
-                const finalId = videoId + antiAdParams;
-
-                // If startSeconds are provided (which happens when refreshing), append them
-                if (startSeconds !== undefined) {
-                    finalId += `&start=${startSeconds}`;
-                }
-
-                return originalLoadVideo(finalId, startSeconds, suggestedQuality);
-            };
-        }
-
-        // Start Monitoring
-        this.startMonitoring();
-        
-        Log.info('AdShield', 'Active: Param Injection + Time Freeze + Playback Logic');
-    },
-
-    // --- 2. START MONITORING ---
-    startMonitoring() {
-        if (this.state.monitoringInterval) clearInterval(this.state.monitoringInterval);
-
-        this.state.monitoringInterval = setInterval(() => {
-            this.checkTimeFreeze();
-            this.checkPlaybackGlitch();
-        }, 2000); // Check every 2 seconds
-    },
-
-    // --- 3. DETECT: TIME FREEZE (The "Frozen Video" Theory) ---
-    checkTimeFreeze() {
-        if (!State.isYouTubeMode || !YouTubeEngine.player) return;
-        if (!State.isPlaying) return; // Only check if playing
-
-        const currentTime = YouTubeEngine.player.getCurrentTime();
-        const duration = YouTubeEngine.player.getDuration();
-
-        // If video is longer than 10s and we are past 10s mark
-        if (currentTime && duration && currentTime > 10) {
-            const timeDelta = Math.abs(currentTime - this.state.lastTime);
-            
-            // If time hasn't moved (< 0.1s) while playing, it's likely an ad or freeze
-            if (timeDelta < 0.1) {
-                this.state.retryCount++;
-                Log.warn('AdShield', `Time Frozen (Retry: ${this.state.retryCount})`);
-                
-                // Immediate Bypass: Force Session Refresh
-                if (this.state.retryCount >= 2) {
-                    this.triggerRefresh("Time Freeze Detected (Likely Ad)");
-                }
-            } else {
-                // Time is moving normally, reset retry count
-                this.state.retryCount = 0;
-            }
-        }
-        this.state.lastTime = currentTime;
-    },
-
-    // --- 4. DETECT: PLAYBACK GLITCH (The "Stuck Video" Theory) ---
-    checkPlaybackGlitch() {
-        // Uses a "Sanity Timer".
-        // If 'PLAYING' is true, but time doesn't update for 3 seconds in a row, it's likely an ad.
-        
-        // (We use an internal counter because we poll every 2s)
-        if (!State.isYouTubeMode) return; // Only applies to YT
-
-        // Note: AdShield.setLastTime() is not real, we assume the player was "playing" 
-        // but the polling loop hasn't updated 'this.state.lastTime' recently.
-        
-        // Simplified: If we detected a freeze in the last check, and it's still happening, trigger refresh.
-        if (this.state.isAdDetected) {
-            // We already detected a freeze. Check if it's still stuck.
-            const currentTime = YouTubeEngine.player.getCurrentTime();
-            if (Math.abs(currentTime - this.state.lastTime) < 0.1) {
-                 // Still stuck! Force Reset.
-                 this.triggerRefresh("Persistent Freeze (Likely Ad)");
-            } else {
-                 // Unfroze
-                 this.state.isAdDetected = false;
-            }
-        }
-    },
-
-    // --- 5. ACTION: TRIGGER REFRESH (The "Switch/Session" Theory) ---
-    triggerRefresh(reason) {
-        this.state.isAdDetected = true; // Lock to prevent double-triggers
-        
-        if (this.state.retryCount >= this.config.maxRetries) {
-            Log.err('AdShield', 'Max Retries Reached. Stopping detection.');
-            return;
-        }
-
-        UI.toast("Ad Detected! Rotating Session...");
-        Log.info('AdShield', `Trigger: ${reason}`);
-
-        const currentTrack = State.currentTrack;
-        if(!currentTrack) {
-            // Fallback reload if no track
-            setTimeout(() => window.location.reload(), 100);
-            return;
-        }
-
-        // 1. Force Stop
-        try {
-            YouTubeEngine.player.stopVideo();
-        } catch(e) {}
-
-        // 2. Destroy and Recreate (The "Switch" Method)
-        // This resets the internal YouTube state completely, often bypassing mid-roll logic.
-        const container = document.getElementById('yt-audio-container');
-        if (container) {
-            // Slightly delay to ensure Stop took effect
-            setTimeout(() => {
-                // Wipe container completely (Cleanest reset)
-                container.innerHTML = '';
-                
-                // Trigger re-init of YouTube engine (which appends iframe)
-                // We need to call the internal init method, or reload track
-                setTimeout(() => {
-                    const key = AudioEngine.normalizeKey(`${currentTrack.artistName} ${currentTrack.trackName}`);
-                    const ytData = YOUTUBE_DB[key];
-                    if (ytData) {
-                        // Force play immediately
-                        State.isYouTubeMode = true;
-                        YouTubeEngine.player.loadVideoById(ytData.v, 0);
-                        
-                        // Reset UI state
-                        State.isPlaying = true;
-                        UI.updatePlaybackState();
-                    }
-                }, 200);
-            }, 100);
-        }
-    },
-
-    // --- 6. ACTION: SET LAST TIME ---
-    // Helper for the Glitch detection
-    setLastTime(time) {
-        this.state.lastTime = time;
-        this.state.isAdDetected = false; // Un-stuck if time moved
-    }
-};
-
 // --- LOGGING & DEV TOOLS ---
 const Log = {
     history: [],
@@ -5010,14 +4812,8 @@ const LINKEngine = {
                     }
                 },
                 'onStateChange': (e) => {
+                    this.checkAdStatus();
                     if (e.data === YT.PlayerState.ENDED) Queue.next();
-                      if(e.data === YT.PlayerState.PLAYING) {
-                        AdShield.isAdDetected = false; // Reset flag when playing normally
-                        AdShield.monitorAdState(this.player); // Start monitoring
-                    } else {
-                        AdShield.isAdDetected = false; // Reset if paused
-                        if(AdShield.detectionInterval) clearInterval(AdShield.detectionInterval);
-                    }
                 },
                 'onError': (e) => {
                     Log.err('LINK', 'YouTube Error');
@@ -5027,6 +4823,52 @@ const LINKEngine = {
             }
         });
     },
+    checkAdStatus() {
+        if (!this.player || !this.player.getAdState) return;
+
+        // getAdState() returns: -1 (none), 0 (playing), 1 (paused), 2 (buffering)
+        const adState = this.player.getAdState();
+        const isAd = adState !== -1;
+
+        if (isAd !== this.adActive) {
+            this.adActive = isAd;
+            if (isAd) {
+                this.handleAdStarted();
+            } else {
+                this.handleAdEnded();
+            }
+        }
+    },
+
+    handleAdStarted() {
+        const adInfo = this.player.getAdVideoData();
+        // metadata like adInfo.title, adInfo.video_id
+        console.log("Ad Started:", adInfo.title);
+        
+        // Start a poller to check for the skip button
+        this.startSkipButtonMonitor();
+    },
+
+    startSkipButtonMonitor() {
+        this.skipCheckInterval = setInterval(() => {
+            if (!this.adActive) {
+                clearInterval(this.skipCheckInterval);
+                return;
+            }
+            // Check if the skip button is usable
+            const currentTime = this.player.getCurrentTime();
+            if (currentTime > 5) {
+                document.getElementById('yt-skip-ad-btn').style.display = 'block';
+            }
+        }, 500);
+    },
+
+    skipAd() {
+        if (this.player && typeof this.player.skipAd === 'function') {
+            this.player.skipAd();
+        }
+    }
+},
  loadVideo(id) {
         // Check if we are trying to load the SAME video (prevents restarts)
         // Note: getPlayerState() might fail if not ready, wrap in try/catch
