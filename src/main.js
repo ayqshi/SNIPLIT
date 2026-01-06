@@ -4861,13 +4861,13 @@ const LINKEngine = {
                 document.getElementById('yt-skip-ad-btn').style.display = 'block';
             }
         }, 500);
+    
     },
 
     skipAd() {
         if (this.player && typeof this.player.skipAd === 'function') {
             this.player.skipAd();
         }
-    }
 },
  loadVideo(id) {
         // Check if we are trying to load the SAME video (prevents restarts)
